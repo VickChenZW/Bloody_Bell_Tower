@@ -148,8 +148,8 @@ function updatePlayerView(state) {
 
     const { number, username, role, status_display } = state.self_info;
     let statusClass = 'text-green-400';
-    let player_status_display = status_display;
-    if (status_display === '仅剩一票') player_status_display = '死亡';
+    // let player_status_display = status_display;
+    // if (status_display === '仅剩一票') player_status_display = '死亡';
     if (status_display === '死亡'|| status_display === '仅剩一票') statusClass = 'text-red-500';
     // if (status_display === '仅剩一次投票') statusClass = 'text-indigo-400';
     console.log(player_status_display)
@@ -157,7 +157,7 @@ function updatePlayerView(state) {
         <p><strong>序号:</strong> ${number}</p>
         <p><strong>名字:</strong> ${username}</p>
         <p><strong>身份:</strong> ${role} <span class="role-help-icon" onclick="showRoleHelp('${role}')">(?)</span></p>
-        <p><strong>状态:</strong> <span class="font-bold ${statusClass}">${player_status_display}</span></p>
+        <p><strong>状态:</strong> <span class="font-bold ${statusClass}">${status_display}</span></p>
     `;
     
     if (state.players && playerList) {
@@ -255,7 +255,7 @@ function updatePlayerCircle(players, voteInfo) {
                 <span class="imp-icon">😈</span>
                 <span class="effect-poison">🤢</span>
                 <span class="effect-is_drunkard">🍺</span>
-                <span class="effect-is_recluse">🤫</span>
+                <span class="effect-is_recluse">👾</span>
                 <span class="effect-is_protected">🛡️</span>
             </div>
             <!-- 新增：显示投票表情的元素 -->
@@ -314,44 +314,6 @@ function updateNightActionList(state) {
     });
 }
 
-// 更新投票结果（说书人）
-// function updateVoteResults(voteInfo) {
-//     const resultsArea = document.getElementById('vote-results-area');
-//     const tallyDiv = document.getElementById('vote-tally');
-    
-//     // 步骤 1: 检查是否有投票正在进行
-//     if (!voteInfo) {
-//         resultsArea.classList.add('hidden');
-//         return;
-//     }
-
-//     // 步骤 2: 显示投票区域并准备数据
-//     resultsArea.classList.remove('hidden');
-//     const votes = voteInfo.votes || {};
-//     const voteMap = { yes: '👍', no: '👎', null: '🤷' };
-
-//     // 步骤 3: 构建HTML字符串来显示每个人的投票
-//     let tallyHTML = `<p class="mb-2">对 <strong>${voteInfo.target}</strong> 的投票正在进行中...</p>`;
-//     tallyHTML += '<ul class="space-y-1 text-sm">';
-    
-//     let yesCount = 0, noCount = 0, nullCount = 0;
-
-//     // 遍历已投票的玩家
-//     for (const [voter, vote] of Object.entries(votes)) {
-//         tallyHTML += `<li>${voter}: <span class="text-xl">${voteMap[vote]}</span></li>`;
-//         if (vote === 'yes') yesCount++;
-//         if (vote === 'no') noCount++;
-//         if (vote === 'null') nullCount++;
-//     }
-//     tallyHTML += '</ul>';
-    
-//     // 步骤 4: 添加最终的计票结果
-//     tallyHTML += `<p class="mt-3 pt-2 border-t border-gray-600 font-semibold">总计: 👍 ${yesCount} | 👎 ${noCount} | 🤷 ${nullCount}</p>`;
-    
-//     // 步骤 5: 将生成的HTML渲染到页面上
-//     tallyDiv.innerHTML = tallyHTML;
-// }
-
 /* */
 // 控制投票按钮
 function updateVoteButton(voteInfo) {
@@ -375,10 +337,12 @@ function updateVoteButton(voteInfo) {
             socket.emit('storyteller_action', { action: 'clear_vote_display' });
         };
     } else { // 'in_progress'
-        btn.textContent = `对 ${voteInfo.target} 投票中...`;
+        btn.textContent = `对 ${voteInfo.target} 投票中，点击重置投票`;
         btn.classList.remove('bg-green-600', 'hover:bg-green-700');
         btn.classList.add('bg-cyan-700');
-        btn.disabled = true; // 投票进行中不可点击
+        btn.onclick = () => {
+            socket.emit('storyteller_action', {action: 'reset_vote'})
+        }
     }
 }
 

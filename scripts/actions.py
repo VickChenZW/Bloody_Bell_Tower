@@ -244,6 +244,12 @@ def handle_clear_vote_display(data, socketio):
     broadcast_all(socketio)
 
 
+def handle_reset_vote(data, socketio):
+    if game_state.get('current_vote'):
+        game_state['current_vote'] = None
+        add_log("说书人重置了投票。", 'all')
+    broadcast_all(socketio)
+
 # --- 玩家行为处理器 ---
 def handle_player_choice(data, username, socketio):
     player = game_state['players'].get(username)
