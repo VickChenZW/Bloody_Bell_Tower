@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>游戏进行中 - 血染钟楼助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        
+        /* 玩家圆盘 */
+        #player-circle { 
+            position: relative; 
+            width: 500px; 
+            height: 500px; 
+            margin: 2rem auto; 
+        }
+        /* 说书人玩家头像 */
+        .player-node {
+            position: absolute; 
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center;
+            transition: all 0.3s ease; 
+            cursor: pointer; 
+            text-align: center;
+        }
+
+        .player-node.dead, .player-node.executed { filter: grayscale(1); opacity: 0.7; }
+        .player-node.final_vote { border-color: #a855f7; }
+
+        .status-icon, .effect-icons span, .vote-emoji { 
+            display: none; 
+        }
+        .player-node.dead .status-icon, .player-node.executed .status-icon, .player-node.final_vote .status-icon { 
+            display: inline-block; 
+        }
+        .player-node.is_imp .imp-icon, 
+        .player-node.poisoned .effect-poison, 
+        .player-node.drunk .effect-drunk,
+        .player-node.is_drunkard .effect-is_drunkard, 
+        .player-node.is_recluse .effect-is_recluse, 
+        .player-node.is_protected .effect-is_protected { 
+            display: inline;
+        }
+
+        @media (max-width: 640px) {
+            #player-circle {
+                width: 95vw;
+                height: 95vw;
+                margin: 1rem auto;
+            }
+        }
+
+        .action-completed { color: #6b7280; }
+        .action-completed::after { content: '✅'; margin-left: 8px; }
+        .role-help-icon { cursor: pointer; font-weight: bold; color: #93c5fd; margin-left: 4px; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+
+    <!-- 主容器 -->
+    <div class="container mx-auto p-2 sm:p-4 max-w-7xl">
+        <!-- 顶部信息栏 -->
+        <header class="bg-gray-800 p-4 rounded-xl mb-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-indigo-400">血染钟楼助手</h1>
+                <p class="text-gray-300">当前用户: <span id="current-user" class="font-semibold">{{ session.username }}</span> (<span id="current-role">{{ session.role }}</span> - <span id="current-number">{{ session.number }}</span>号)</p>
+            </div>
+            <div class="flex flex-row gap-2">
+                 <a href="/logout" class="bg-red-600 hover:bg-red-700 text-white font-bold text-sm sm:text-base py-2 px-4 rounded-lg transition">退出登录</a>
+                 {% if session.is_storyteller %}
+                 <a href="/reset_game" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold text-sm sm:text-base py-2 px-4 rounded-lg transition" onclick="return confirm('确定要重置游戏吗？所有进度将丢失！')">重置游戏</a>
+                 {% endif %}
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+            <!-- 左侧面板 (优化布局顺序) -->
+            <aside class="lg:col-span-1 bg-gray-800 p-4 sm:p-6 rounded-xl order-1">
+                {% if session.is_storyteller %}
+                <!-- ########## 说书人控制面板 ########## -->
+                <div id="storyteller-controls">
+                    <h2 class="text-xl font-bold mb-4 border-b border-gray-700 pb-2">说书人控制台</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <h3 class="font-semibold text-lg mb-2">游戏阶段</h3>
+                            <p class="text-gray-400">当前: <span id="game-phase-display" class="font-bold text-xl">未开始</span> <span id="night-number-display" class="text-sm"></span></p>
+                            <button id="change-phase-btn" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">开始夜晚</button>
+                        </div>
+                        <div id="day-actions" class="hidden">
+                            <h3 class="font-semibold text-lg mb-2">白天行动</h3>
+                            <p class="text-gray-400 text-sm">点击玩家席位上的玩家，可以发起处决投票。</p>
+                             <!-- 投票状态按钮 -->
+                            <button id="st-vote-status-btn" class="w-full mt-2 bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg hidden"></button>
+                             <!-- <div id="vote-results-area" class="hidden bg-gray-700 p-4 rounded-lg mt-2">
+                                 <h4 class="font-semibold text-yellow-300 mb-2">当前投票结果</h4>
+                                 <div id="vote-tally"></div> -->
+                             <!-- </div> -->
+                        </div>
+                        <div id="night-actions">
+                            <h3 class="font-semibold text-lg mb-2">夜晚行动顺序</h3>
+                            <ul id="night-action-list" class="space-y-2"></ul>
+                        </div>
+                        <div id="st-dynamic-action-area" class="bg-gray-700 p-4 rounded-lg hidden">
+                            <h3 id="st-action-title" class="font-semibold text-lg mb-3 text-yellow-300"></h3>
+                            <div id="st-action-controls" class="space-y-3"></div>
+                            <button id="st-action-submit-btn" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 font-bold py-2 px-4 rounded-lg">发送信息</button>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <!-- ########## 玩家信息面板 ########## -->
+                <div id="player-info">
+                    <h2 class="text-xl font-bold mb-4 border-b border-gray-700 pb-2">我的状态</h2>
+                    <div id="self-info-card" class="bg-gray-700 p-4 rounded-lg"></div>
+                    <div class="mt-4 bg-gray-700 p-4 rounded-lg">
+                        <h3 class="font-semibold text-lg">游戏阶段</h3>
+                        <p class="text-gray-400">当前: <span id="player-game-phase-display" class="font-bold text-xl"></span> <span id="player-night-number-display" class="text-sm"></span></p>
+                    </div>
+                    <div id="player-action-area" class="mt-4 hidden">
+                         <h3 class="font-semibold text-lg mb-2">你的行动</h3>
+                         <div id="action-controls" class="bg-gray-700 p-4 rounded-lg space-y-3">
+                            <p id="action-prompt" class="text-yellow-300"></p>
+                            <div id="storyteller-info-box" class="text-cyan-300 bg-gray-600 p-3 rounded-md hidden"></div>
+                            <div id="player-choice-controls" class="space-y-2"></div>
+                            <button id="submit-action-btn" class="w-full bg-green-600 hover:bg-green-700 font-bold py-2 px-4 rounded-lg">确认行动</button>
+                         </div>
+                    </div>
+                </div>
+                {% endif %}
+            </aside>
+
+            <!-- 中间面板 -->
+            <section class="lg:col-span-2 bg-gray-800 p-4 sm:p-6 rounded-xl order-2">
+                 <h2 class="text-xl font-bold mb-4 text-center">
+                    {% if session.is_storyteller %}玩家席位{% else %}所有玩家{% endif %}
+                </h2>
+                {% if session.is_storyteller %}
+                <div id="player-circle-container">
+                    <div id="player-circle"></div>
+                </div>
+                {% else %}
+                <div id="player-list" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-4"></div>
+                {% endif %}
+            </section>
+
+            <!-- 底部日志面板 -->
+            <div class="lg:col-span-3 bg-gray-800 p-4 sm:p-6 rounded-xl order-3">
+                <h2 class="text-xl font-bold mb-4">游戏日志</h2>
+                <div id="log-box" class="h-48 bg-gray-900 rounded-lg p-4 overflow-y-auto flex flex-col-reverse"></div>
+            </div>
+            <!-- 所有角色玩法说明 -->
+             <div class="lg:col-span-3 bg-gray-800 p-4 sm:p-6 rounded-xl order-3">
+                <h2 clas="test-xl font-bold md-4">游戏介绍</h2>
+                <div class=" flex flex-row gap-2">  
+                    <button id="help_btn" onclick="getHelp()" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">显示玩家使用说明</button>
+                    <select id="help_select" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none">test</select>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 玩家操作模态框 (说书人用) -->
+    <div id="player-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-lg p-6 w-full max-w-sm">
+            <h3 class="text-lg font-bold mb-4" id="modal-title"></h3>
+            <div class="space-y-3">
+                <button id="modal-initiate-vote-btn" class="w-full bg-cyan-600 hover:bg-cyan-700 font-bold py-2 px-4 rounded-lg hidden">发起处决投票</button>
+                <hr id="vote-hr" class="border-gray-600 hidden">
+                <button id="modal-kill-btn" class="w-full bg-red-600 hover:bg-red-700 font-bold py-2 px-4 rounded-lg">标记为【死亡】</button>
+                <button id="modal-final-vote-btn" class="w-full bg-indigo-500 hover:bg-indigo-600 font-bold py-2 px-4 rounded-lg">标记为【仅剩一票】</button>
+                <!-- <button id="modal-execute-btn" class="w-full bg-orange-500 hover:bg-orange-600 font-bold py-2 px-4 rounded-lg">标记为【处决】(后台状态)</button> -->
+                <button id="modal-revive-btn" class="w-full bg-green-600 hover:bg-green-700 font-bold py-2 px-4 rounded-lg">标记为【存活】</button>
+                <hr class="border-gray-600">
+                <button id="modal-set-imp-btn" class="w-full bg-rose-600 hover:bg-rose-700 font-bold py-2 px-4 rounded-lg">设为【小恶魔】</button>
+                <hr class="border-gray-600">
+                <button id="modal-poison-btn" class="w-full bg-purple-600 hover:bg-purple-700 font-bold py-2 px-4 rounded-lg">切换【中毒】效果</button>
+                <!-- <button id="modal-drunk-btn" class="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-2 px-4 rounded-lg">切换【醉酒】效果</button> -->
+                <button id="modal-is-drunkard-btn" class="w-full bg-yellow-700 hover:bg-yellow-800 font-bold py-2 px-4 rounded-lg">切换【酒鬼】身份</button>
+                <button id="modal-is-recluse-btn" class="w-full bg-gray-500 hover:bg-gray-600 font-bold py-2 px-4 rounded-lg">切换【假恶魔】身份</button>
+                <button id="modal-is-protected-btn" class="w-full bg-blue-500 hover:bg-blue-600 font-bold py-2 px-4 rounded-lg">切换【守护】状态</button>
+            </div>
+            <button onclick="closeModal()" class="w-full mt-6 bg-gray-600 hover:bg-gray-700 font-bold py-2 px-4 rounded-lg">关闭</button>
+        </div>
+    </div>
+    
+    <!-- 全屏消息提示框 -->
+    <div id="system-message-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-lg p-8 w-full max-w-md text-center shadow-2xl border border-gray-700">
+            <h3 class="text-2xl font-bold text-yellow-300 mb-4">系统提示</h3>
+            <p id="system-message-content" class="text-white text-lg mb-6 whitespace-pre-wrap"></p>
+            <button id="system-message-close-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg">好的</button>
+        </div>
+    </div>
+
+    <!-- 投票选择消息框 -->
+    <div id="select-message-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-lg p-8 w-full max-w-md text-center shadow-2xl border border-gray-700">
+            <h3 class="text-2xl font-bold text-yellow-300 mb-4">处决投票</h3>
+            <p id="select-message-content" class="text-white text-lg mb-6 whitespace-pre-wrap"></p>
+            <div class="flex justify-center gap-4">
+                <button id="select-message-ok-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg text-2xl">👍</button>
+                <button id="select-message-refuse-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg text-2xl">👎</button>
+                <button id="select-message-null-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg text-2xl">🤷</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 关键修改：通过 script 标签传递后端变量给 JS 文件 -->
+    <script>
+        const IS_STORYTELLER = {{ 'true' if session.is_storyteller else 'false' }};
+        const CURRENT_USERNAME = "{{ session.username }}";
+    </script>
+    <!-- 引入外部 JS 文件，使用 defer 确保在 HTML 解析后执行 -->
+    <script src="{{ url_for('static', filename='js/game_board.js') }}" defer></script>
+</body>
+</html>

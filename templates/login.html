@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 血染钟楼助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .tab-button.active {
+            border-color: #4f46e5;
+            background-color: #eef2ff;
+            color: #4338ca;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen">
+    <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md">
+        <h1 class="text-3xl font-bold text-center text-indigo-400 mb-2">血染钟楼</h1>
+        <h2 class="text-xl font-medium text-center text-gray-300 mb-8">暗流涌动 - 游戏助手</h2>
+
+        <div class="mb-6">
+            <div class="flex border-b border-gray-700">
+                <button id="player-tab" class="tab-button flex-1 py-3 text-lg font-semibold text-gray-400 border-b-2 border-transparent transition-colors duration-300" onclick="switchTab('player')">我是玩家</button>
+                <button id="storyteller-tab" class="tab-button flex-1 py-3 text-lg font-semibold text-gray-400 border-b-2 border-transparent transition-colors duration-300" onclick="switchTab('storyteller')">我是说书人</button>
+            </div>
+        </div>
+
+        <!-- 玩家登录表单 -->
+        <form id="player-form" action="/login" method="POST">
+            <div class="space-y-6">
+                <div>
+                    <label for="player-username" class="block text-sm font-medium text-gray-300 mb-2">你的名字</label>
+                    <input type="text" id="player-username" name="username" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="例如：张三" required>
+                </div>
+                <div>
+                    <label for="player-number" class="block text-sm font-medium text-gray-300 mb-2">你的序号</label>
+                    <input type="number" id="player-number" name="number" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="例如：5" required>
+                </div>
+                <div>
+                    <label for="role" class="block text-sm font-medium text-gray-300 mb-2">你的身份</label>
+                    <select name="role" id="role" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </select>
+                    <!-- <input type="text" id="role" name="role" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="输入你抽到的身份牌" required> -->
+                </div>
+            </div>
+            <button type="submit" class="w-full mt-8 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105">进入游戏</button>
+        </form>
+
+        <!-- 说书人登录表单 -->
+        <form id="storyteller-form" action="/login" method="POST" class="hidden">
+            <input type="hidden" name="is_storyteller" value="true">
+            <div>
+                <label for="storyteller-username" class="block text-sm font-medium text-gray-300 mb-2">说书人代号</label>
+                <input type="text" id="storyteller-username" name="username" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="例如：上帝" value="说书人" required>
+            </div>
+             <p class="text-sm text-gray-400 mt-4">作为说书人，你将拥有控制游戏进程和所有玩家信息的权限。</p>
+            <button type="submit" class="w-full mt-8 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105">创建游戏房间</button>
+        </form>
+    </div>
+
+    <script>
+        function switchTab(tab) {
+            const playerForm = document.getElementById('player-form');
+            const storytellerForm = document.getElementById('storyteller-form');
+            const playerTab = document.getElementById('player-tab');
+            const storytellerTab = document.getElementById('storyteller-tab');
+
+            if (tab === 'player') {
+                playerForm.classList.remove('hidden');
+                storytellerForm.classList.add('hidden');
+                playerTab.classList.add('active');
+                storytellerTab.classList.remove('active');
+            } else {
+                playerForm.classList.add('hidden');
+                storytellerForm.classList.remove('hidden');
+                playerTab.classList.remove('active');
+                storytellerTab.classList.add('active');
+            }
+        }
+        // Initialize with player tab active
+        switchTab('player');
+
+        function addPlayerList(){
+            const roles = ['洗衣妇', '图书管理员', '调查员', '厨师', '共情者', '占卜师', '送葬者', '僧侣', '守鸦人', '贞洁者',
+              '猎手', '士兵', '镇长', '管家', '陌客', '酒鬼', '圣徒', '投毒者', '红唇女郎', '间谍', '男爵', '小恶魔'];
+
+            const roleSelect = document.getElementById('role');
+
+            for (let i = 0; i< roles.length; i++){
+                const option = document.createElement('option');
+                option.value = roles[i];
+                option.textContent = roles[i];
+                roleSelect.appendChild(option);
+            }
+        }
+        addPlayerList();
+    </script>
+
+
+</body>
+</html>
