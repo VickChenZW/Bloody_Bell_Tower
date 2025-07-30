@@ -10,94 +10,160 @@
         body { font-family: 'Inter', sans-serif; }
         .tab-button.active {
             border-color: #4f46e5;
-            background-color: #eef2ff;
-            color: #4338ca;
+            background-color: #4f46e5;
+            color: #ffffff;
+        }
+        .form-container {
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
         }
     </style>
 </head>
-<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen">
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
     <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md">
         <h1 class="text-3xl font-bold text-center text-indigo-400 mb-2">血染钟楼</h1>
         <h2 class="text-xl font-medium text-center text-gray-300 mb-8">暗流涌动 - 游戏助手</h2>
 
-        <div class="mb-6">
-            <div class="flex border-b border-gray-700">
-                <button id="player-tab" class="tab-button flex-1 py-3 text-lg font-semibold text-gray-400 border-b-2 border-transparent transition-colors duration-300" onclick="switchTab('player')">我是玩家</button>
-                <button id="storyteller-tab" class="tab-button flex-1 py-3 text-lg font-semibold text-gray-400 border-b-2 border-transparent transition-colors duration-300" onclick="switchTab('storyteller')">我是说书人</button>
-            </div>
+        <!-- 游戏模式选择 -->
+        <div class="mb-6 flex rounded-lg bg-gray-700 p-1">
+            <button id="random-mode-btn" class="tab-button flex-1 py-2 text-md font-semibold rounded-md" onclick="switchGameMode('random')">随机分配</button>
+            <button id="manual-mode-btn" class="tab-button flex-1 py-2 text-md font-semibold rounded-md" onclick="switchGameMode('manual')">手动输入</button>
         </div>
 
-        <!-- 玩家登录表单 -->
-        <form id="player-form" action="/login" method="POST">
-            <div class="space-y-6">
-                <div>
-                    <label for="player-username" class="block text-sm font-medium text-gray-300 mb-2">你的名字</label>
-                    <input type="text" id="player-username" name="username" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="例如：张三" required>
-                </div>
-                <div>
-                    <label for="player-number" class="block text-sm font-medium text-gray-300 mb-2">你的序号</label>
-                    <input type="number" id="player-number" name="number" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="例如：5" required>
-                </div>
-                <div>
-                    <label for="role" class="block text-sm font-medium text-gray-300 mb-2">你的身份</label>
-                    <select name="role" id="role" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    </select>
-                    <!-- <input type="text" id="role" name="role" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="输入你抽到的身份牌" required> -->
+        <!-- 手动输入模式表单 -->
+        <div id="manual-mode-container" class="form-container">
+            <div class="mb-6">
+                <div class="flex border-b border-gray-700">
+                    <button id="player-tab-manual" class="flex-1 py-3 text-lg font-semibold text-gray-400 border-b-2 border-transparent" onclick="switchRoleTab('player', 'manual')">我是玩家</button>
+                    <button id="storyteller-tab-manual" class="flex-1 py-3 text-lg font-semibold text-gray-400 border-b-2 border-transparent" onclick="switchRoleTab('storyteller', 'manual')">我是说书人</button>
                 </div>
             </div>
-            <button type="submit" class="w-full mt-8 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105">进入游戏</button>
-        </form>
+            <form id="player-form-manual" action="/login" method="POST">
+                <input type="hidden" name="game_mode" value="manual">
+                <div class="space-y-6">
+                    <div>
+                        <label for="player-username-manual" class="block text-sm font-medium text-gray-300 mb-2">你的名字</label>
+                        <input type="text" id="player-username-manual" name="username" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3" placeholder="例如：张三" required>
+                    </div>
+                    <div>
+                        <label for="player-number-manual" class="block text-sm font-medium text-gray-300 mb-2">你的序号</label>
+                        <input type="number" id="player-number-manual" name="number" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3" placeholder="例如：5" required>
+                    </div>
+                    <div>
+                        <label for="role-manual" class="block text-sm font-medium text-gray-300 mb-2">你的身份</label>
+                        <select name="role" id="role-manual" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3"></select>
+                    </div>
+                </div>
+                <button type="submit" class="w-full mt-8 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg">进入游戏</button>
+            </form>
+            <form id="storyteller-form-manual" action="/login" method="POST" class="hidden">
+                <input type="hidden" name="game_mode" value="manual">
+                <input type="hidden" name="is_storyteller" value="true">
+                <div>
+                    <label for="storyteller-username-manual" class="block text-sm font-medium text-gray-300 mb-2">说书人代号</label>
+                    <input type="text" id="storyteller-username-manual" name="username" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3" value="说书人" required>
+                </div>
+                <button type="submit" class="w-full mt-8 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-lg">创建游戏房间</button>
+            </form>
+        </div>
 
-        <!-- 说书人登录表单 -->
-        <form id="storyteller-form" action="/login" method="POST" class="hidden">
-            <input type="hidden" name="is_storyteller" value="true">
-            <div>
-                <label for="storyteller-username" class="block text-sm font-medium text-gray-300 mb-2">说书人代号</label>
-                <input type="text" id="storyteller-username" name="username" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="例如：上帝" value="说书人" required>
+        <!-- 随机分配模式表单 -->
+        <div id="random-mode-container" class="form-container hidden">
+             <div class="mb-6">
+                <div class="flex border-b border-gray-700">
+                    <button id="player-tab-random" class="flex-1 py-3 text-lg font-semibold text-gray-400 border-b-2 border-transparent" onclick="switchRoleTab('player', 'random')">我是玩家</button>
+                    <button id="storyteller-tab-random" class="flex-1 py-3 text-lg font-semibold text-gray-400 border-b-2 border-transparent" onclick="switchRoleTab('storyteller', 'random')">我是说书人</button>
+                </div>
             </div>
-             <p class="text-sm text-gray-400 mt-4">作为说书人，你将拥有控制游戏进程和所有玩家信息的权限。</p>
-            <button type="submit" class="w-full mt-8 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105">创建游戏房间</button>
-        </form>
+            <form id="player-form-random" action="/login" method="POST">
+                <input type="hidden" name="game_mode" value="random">
+                <div class="space-y-6">
+                    <div>
+                        <label for="player-username-random" class="block text-sm font-medium text-gray-300 mb-2">你的名字</label>
+                        <input type="text" id="player-username-random" name="username" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3" placeholder="例如：李四" required>
+                    </div>
+                    <div>
+                        <label for="player-number-random" class="block text-sm font-medium text-gray-300 mb-2">你的序号</label>
+                        <input type="number" id="player-number-random" name="number" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3" placeholder="例如：8" required>
+                    </div>
+                </div>
+                 <p class="text-sm text-gray-400 mt-4">你的身份将由说书人配置后随机分配。</p>
+                <button type="submit" class="w-full mt-8 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg">加入等待队列</button>
+            </form>
+            <form id="storyteller-form-random" action="/login" method="POST" class="hidden">
+                 <input type="hidden" name="game_mode" value="random">
+                 <input type="hidden" name="is_storyteller" value="true">
+                <div>
+                    <label for="storyteller-username-random" class="block text-sm font-medium text-gray-300 mb-2">说书人代号</label>
+                    <input type="text" id="storyteller-username-random" name="username" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-3" value="说书人" required>
+                </div>
+                <p class="text-sm text-gray-400 mt-4">你将进入游戏配置页面，以设置玩家人数和本局游戏的角色。</p>
+                <button type="submit" class="w-full mt-8 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-lg">配置新游戏</button>
+            </form>
+        </div>
     </div>
 
     <script>
-        function switchTab(tab) {
-            const playerForm = document.getElementById('player-form');
-            const storytellerForm = document.getElementById('storyteller-form');
-            const playerTab = document.getElementById('player-tab');
-            const storytellerTab = document.getElementById('storyteller-tab');
+        function switchGameMode(mode) {
+            const manualContainer = document.getElementById('manual-mode-container');
+            const randomContainer = document.getElementById('random-mode-container');
+            const manualBtn = document.getElementById('manual-mode-btn');
+            const randomBtn = document.getElementById('random-mode-btn');
 
-            if (tab === 'player') {
+            if (mode === 'manual') {
+                manualContainer.classList.remove('hidden');
+                randomContainer.classList.add('hidden');
+                manualBtn.classList.add('active');
+                randomBtn.classList.remove('active');
+                switchRoleTab('player', 'manual');
+            } else {
+                manualContainer.classList.add('hidden');
+                randomContainer.classList.remove('hidden');
+                manualBtn.classList.remove('active');
+                randomBtn.classList.add('active');
+                switchRoleTab('player', 'random');
+            }
+        }
+
+        function switchRoleTab(role, mode) {
+            const playerForm = document.getElementById(`player-form-${mode}`);
+            const storytellerForm = document.getElementById(`storyteller-form-${mode}`);
+            const playerTab = document.getElementById(`player-tab-${mode}`);
+            const storytellerTab = document.getElementById(`storyteller-tab-${mode}`);
+            
+            // Reset borders for both tabs in the current mode
+            playerTab.style.borderColor = 'transparent';
+            storytellerTab.style.borderColor = 'transparent';
+            playerTab.style.color = '#9ca3af'; // gray-400
+            storytellerTab.style.color = '#9ca3af';
+
+            if (role === 'player') {
                 playerForm.classList.remove('hidden');
                 storytellerForm.classList.add('hidden');
-                playerTab.classList.add('active');
-                storytellerTab.classList.remove('active');
+                playerTab.style.borderColor = '#6366f1'; // indigo-500
+                playerTab.style.color = '#e0e7ff'; // indigo-100
             } else {
                 playerForm.classList.add('hidden');
                 storytellerForm.classList.remove('hidden');
-                playerTab.classList.remove('active');
-                storytellerTab.classList.add('active');
+                storytellerTab.style.borderColor = '#f43f5e'; // rose-500
+                storytellerTab.style.color = '#fecdd3'; // rose-100
             }
         }
-        // Initialize with player tab active
-        switchTab('player');
-
+        
         function addPlayerList(){
-            const roles = ['洗衣妇', '图书管理员', '调查员', '厨师', '共情者', '占卜师', '送葬者', '僧侣', '守鸦人', '贞洁者',
-              '猎手', '士兵', '镇长', '管家', '陌客', '酒鬼', '圣徒', '投毒者', '红唇女郎', '间谍', '男爵', '小恶魔'];
-
-            const roleSelect = document.getElementById('role');
-
-            for (let i = 0; i< roles.length; i++){
+            const roles = ['洗衣妇', '图书管理员', '调查员', '厨师', '共情者', '占卜师', '送葬者', '僧侣', '守鸦人', '贞洁者', '猎手', '士兵', '镇长', '管家', '陌客', '酒鬼', '圣徒', '投毒者', '红唇女郎', '间谍', '男爵', '小恶魔'];
+            const roleSelect = document.getElementById('role-manual');
+            roleSelect.innerHTML = '';
+            roles.forEach(role => {
                 const option = document.createElement('option');
-                option.value = roles[i];
-                option.textContent = roles[i];
+                option.value = role;
+                option.textContent = role;
                 roleSelect.appendChild(option);
-            }
+            });
         }
+
+        // Initialize
         addPlayerList();
+        switchGameMode('random');
     </script>
-
-
 </body>
 </html>

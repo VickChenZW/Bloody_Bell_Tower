@@ -2,6 +2,8 @@
 from flask import render_template, request, redirect, url_for, session
 from scripts.game_state import game_state, reset_game_state
 from scripts.actions import add_log
+from scripts.config import ROLE_DESCRIPTIONS, GOOD_ROLES, BAD_ROLES
+import random
 
 """
 这个文件负责处理所有的 Flask HTTP 路由。
@@ -15,15 +17,51 @@ def register_routes(app, socketio):
             return redirect(url_for('game_board'))
         return render_template('login.html')
 
+    # @app.route('/login', methods=['POST'])
+    # def login():
+    #     session['username'] = request.form.get('username')
+    #     session['is_storyteller'] = 'is_storyteller' in request.form
+    #     if session['is_storyteller']:
+    #         session['role'], session['number'] = '说书人', 'ST'
+    #     else:
+    #         session['role'], session['number'] = request.form.get('role'), request.form.get('number')
+    #     return redirect(url_for('game_board'))
+
     @app.route('/login', methods=['POST'])
     def login():
+        game_mode = request.form.get('game_mode')
+        session['game_mode'] = game_mode
         session['username'] = request.form.get('username')
         session['is_storyteller'] = 'is_storyteller' in request.form
+
         if session['is_storyteller']:
+            reset_game_state()  # 说书人登录时重置游戏
+            game_state['game_mode'] = game_mode
             session['role'], session['number'] = '说书人', 'ST'
+            if game_mode == 'random':
+                return redirect(url_for('setup_game'))
         else:
-            session['role'], session['number'] = request.form.get('role'), request.form.get('number')
+            if game_mode == 'manual':
+                session['role'] = request.form.get('role')
+            else:  # random mode
+                session['role'] = '未知'  # 随机模式下，玩家角色初始为未知
+            session['number'] = request.form.get('number')
         return redirect(url_for('game_board'))
+
+    @app.route('/setup_game', methods=['GET', 'POST'])
+    def setup_game():
+        if not session.get('is_storyteller') or session.get('game_mode') != 'random':
+            return redirect(url_for('index'))
+
+        if request.method == 'POST':
+            game_state['total_player_count'] = int(request.form.get('player_count'))
+            game_state['roles_to_assign'] = request.form.getlist('roles')
+            random.shuffle(game_state['roles_to_assign'])  # 洗牌
+            add_log(f"说书人已配置游戏：总共 {game_state['total_player_count']} 名玩家。", "all")
+            return redirect(url_for('game_board'))
+
+        role_types = {role: 'good' if role in GOOD_ROLES else 'evil' for role in GOOD_ROLES + BAD_ROLES}
+        return render_template('setup_game.html', role_descriptions=ROLE_DESCRIPTIONS, role_types=role_types)
 
     @app.route('/game_board')
     def game_board():

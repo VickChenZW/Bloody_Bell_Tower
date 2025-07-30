@@ -106,6 +106,15 @@ socket.on('initiate_vote', (data) => {
     dom.selectMessageModal.classList.remove('hidden');
 });
 
+// 分配身份
+socket.on('role_assigned', (data) => {
+    if (IS_STORYTELLER) return;
+    // 更新前端的身份信息
+    document.getElementById('current-role').textContent = data.role;
+    document.getElementById('player-waiting-area').classList.add('hidden');
+    document.getElementById('player-game-area').classList.remove('hidden');
+    showSystemMessage(`你的身份是: 【${data.role}】\n\n${data.description}`);
+});
 
 
 // --- UI 渲染函数 ---
@@ -123,19 +132,40 @@ function updateLogs(logs) {
 
 //  更新说书人窗口
 function updateStorytellerView(state) {
-    updatePhase(state);
-    updatePlayerCircle(state.players, state.current_vote); // 传递投票信息
-    updateVoteButton(state.current_vote); // 新函数：更新投票按钮状态
+    if (state.game_mode === 'random' && state.game_phase === 'not_started') {
+        document.getElementById('st-game-setup-info').classList.remove('hidden');
+        document.getElementById('st-game-progress-info').classList.add('hidden');
+        const playerCount = Object.keys(state.players).length;
+        const totalCount = state.total_player_count;
+        document.getElementById('player-join-status').textContent = `${playerCount}/${totalCount}`;
+        const startGameBtn = document.getElementById('start-game-btn');
+        startGameBtn.disabled = !state.is_game_ready_to_start;
+    } else {
+        document.getElementById('st-game-setup-info').classList.add('hidden');
+        document.getElementById('st-game-progress-info').classList.remove('hidden');
+        updatePhase(state);
+        updateVoteButton(state.current_vote);
+    }
+    updatePlayerCircle(state.players, state.current_vote);
 }
 
 // 更新玩家窗口
 function updatePlayerView(state) {
+    if (state.game_mode === 'random' && state.game_phase === 'not_started') {
+        document.getElementById('player-waiting-area').classList.remove('hidden');
+        document.getElementById('player-game-area').classList.add('hidden');
+    } else {
+        document.getElementById('player-waiting-area').classList.add('hidden');
+        document.getElementById('player-game-area').classList.remove('hidden');
+    }
+   
+
+    if (!state.self_info) return;
+
     const playerPhaseDisplay = document.getElementById('player-game-phase-display');
     const playerNightNumDisplay = document.getElementById('player-night-number-display');
     const selfInfoCard = document.getElementById('self-info-card');
     const playerList = document.getElementById('player-list');
-
-    if (!state.self_info) return;
 
     const phaseMap = {
         'not_started': { text: '未开始', color: 'text-gray-400' },
@@ -152,7 +182,7 @@ function updatePlayerView(state) {
     // if (status_display === '仅剩一票') player_status_display = '死亡';
     if (status_display === '死亡'|| status_display === '仅剩一票') statusClass = 'text-red-500';
     // if (status_display === '仅剩一次投票') statusClass = 'text-indigo-400';
-    console.log(player_status_display)
+    // console.log(player_status_display)
     selfInfoCard.innerHTML = `
         <p><strong>序号:</strong> ${number}</p>
         <p><strong>名字:</strong> ${username}</p>
@@ -219,18 +249,19 @@ function updatePlayerCircle(players, voteInfo) {
     const count = playerArray.length;
     if (count === 0) return;
 
-    const container = document.getElementById('player-circle');
+    const container = document.getElementById('player-circle-container');
     const radius = container.offsetWidth / 2 * 0.8; 
     const centerX = container.offsetWidth / 2;
     const centerY = container.offsetHeight / 2;
-    const nodeSize = window.innerWidth < 640 ? 65 : 100;
+    
+    const nodeSize = Math.max(65, container.offsetWidth / 6);
 
     const voteMap = { yes: '👍', no: '👎', null: '🤷' };
 
     playerArray.forEach((player, i) => {
-        const angle = (360 / count * i - 90) * (Math.PI / 180);
-        const x = centerX + radius * Math.cos(angle) - nodeSize / 2;
-        const y = centerY + radius * Math.sin(angle) - nodeSize / 2;
+        const angle = (360 / count * i - 90) * (Math.PI / 180);   
+        const x = centerX + radius * Math.cos(angle);
+        const y = centerY + radius * Math.sin(angle);
         
         const effectsClasses = (player.effects || []).join(' ');
         const impClass = player.is_imp ? 'is_imp' : '';
@@ -537,6 +568,11 @@ function renderPlayerActionArea(role) {
 dom.systemMessageCloseBtn.onclick = () => dom.systemMessageModal.classList.add('hidden');
 
 if (IS_STORYTELLER) {
+    const startGameBtn = document.getElementById('start-game-btn');
+    if(startGameBtn) startGameBtn.onclick = () => {
+        socket.emit('storyteller_action', { action: 'start_game' });
+        console.log('开始游戏')
+    }
     document.getElementById('change-phase-btn').onclick = () => socket.emit('storyteller_action', { action: 'change_phase' });
     document.getElementById('modal-initiate-vote-btn').onclick = () => {
         if (selectedPlayerForModal) {

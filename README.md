@@ -6,7 +6,7 @@
 <h1 align="center">血染钟楼 - 暗流涌动 (网页助手)</h1>
 
 <!-- Shields -->
-<p align="center">
+<!-- <p align="center">
   <a href="https://github.com/[你的用户名]/[你的仓库名]/releases">
     <img src="https://img.shields.io/github/v/release/[你的用户名]/[你的仓库名]" alt="Release">
   </a>
@@ -19,7 +19,7 @@
   <a href="https://github.com/[你的用户名]/[你的仓库名]/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/[你的用户名]/[你的仓库名]" alt="License">
   </a>
-</p>
+</p> -->
 
 这是一个为桌游《血染钟楼》之“暗流涌动”剧本设计的网页版说书人助手。它通过一个图形化界面（GUI）启动本地服务器，玩家和说书人可以通过浏览器访问特定网址，从而极大地简化说书人的操作，帮助其管理复杂的游戏流程。
 

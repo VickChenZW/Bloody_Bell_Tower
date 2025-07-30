@@ -61,6 +61,36 @@ def broadcast_all(socketio):
 
 # --- 说书人行为处理器 ---
 
+# 新增：开始游戏并发牌 (随机模式)
+def handle_start_game(data, socketio):
+    if game_state['game_mode'] != 'random' or not game_state['is_game_ready_to_start']:
+        return
+
+    # 分配角色
+    roles = game_state['roles_to_assign']
+    player_list = list(game_state['players'].keys())
+
+    for i, username in enumerate(player_list):
+        role = roles[i]
+        game_state['players'][username]['role'] = role
+        game_state['players'][username]['is_evil'] = role in game_state['bad_roles']
+        game_state['players'][username]['is_imp'] = role == '小恶魔'
+        game_state['assigned_roles'][username] = role
+
+        # 向每个玩家发送他们的角色信息
+        player_sid = game_state['players'][username].get('sid')
+        if player_sid:
+            socketio.emit('role_assigned', {
+                'role': role,
+                'description': game_state['role_descriptions'].get(role, '暂无描述。')
+            }, to=player_sid)
+
+    add_log("游戏开始！角色已分配。", "all")
+    # 游戏开始后，直接进入首夜
+    handle_change_phase({}, socketio)
+
+
+
 # 更新轮次
 def handle_change_phase(data, socketio):
     current_phase = game_state['game_phase']

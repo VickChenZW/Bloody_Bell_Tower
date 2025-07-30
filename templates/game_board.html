@@ -11,12 +11,22 @@
         body { font-family: 'Inter', sans-serif; overflow-x: hidden; }
         
         /* 玩家圆盘 */
+        /* 关键修复 1: 让容器去适应外部布局，而不是被内部元素撑开 */
+        #player-circle-container {
+            width: 100%; /* 宽度占满父元素 (<section>) */
+            max-width: 500px; /* 最大宽度不超过500px，防止在大屏幕上过大 */
+            margin: 2rem auto; /* 水平居中 */
+            aspect-ratio: 1 / 1; /* 保证容器本身是正方形，宽高比为1:1 */
+            position: relative; /* 作为内部绝对定位元素的基准 */
+        }
+
+        /* 关键修复 2: 让圆盘完全填充自适应的容器 */
         #player-circle { 
             position: relative; 
-            width: 500px; 
-            height: 500px; 
-            margin: 2rem auto; 
+            width: 100%; 
+            height: 100%; 
         }
+        
         /* 说书人玩家头像 */
         .player-node {
             position: absolute; 
@@ -89,7 +99,12 @@
                 <div id="storyteller-controls">
                     <h2 class="text-xl font-bold mb-4 border-b border-gray-700 pb-2">说书人控制台</h2>
                     <div class="space-y-4">
-                        <div>
+                        <div id="st-game-setup-info" class="hidden">
+                             <h3 class="font-semibold text-lg mb-2">游戏准备中</h3>
+                             <p class="text-gray-400">玩家加入情况: <span id="player-join-status" class="font-bold text-xl text-yellow-400">0/0</span></p>
+                             <button id="start-game-btn" class="w-full mt-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg disabled:bg-gray-600 disabled:cursor-not-allowed" disabled>开始游戏</button>
+                        </div>
+                        <div id="st-game-progress-info" class="hidden">
                             <h3 class="font-semibold text-lg mb-2">游戏阶段</h3>
                             <p class="text-gray-400">当前: <span id="game-phase-display" class="font-bold text-xl">未开始</span> <span id="night-number-display" class="text-sm"></span></p>
                             <button id="change-phase-btn" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">开始夜晚</button>
@@ -118,20 +133,26 @@
                 {% else %}
                 <!-- ########## 玩家信息面板 ########## -->
                 <div id="player-info">
-                    <h2 class="text-xl font-bold mb-4 border-b border-gray-700 pb-2">我的状态</h2>
-                    <div id="self-info-card" class="bg-gray-700 p-4 rounded-lg"></div>
-                    <div class="mt-4 bg-gray-700 p-4 rounded-lg">
-                        <h3 class="font-semibold text-lg">游戏阶段</h3>
-                        <p class="text-gray-400">当前: <span id="player-game-phase-display" class="font-bold text-xl"></span> <span id="player-night-number-display" class="text-sm"></span></p>
+                    <div id="player-waiting-area">
+                        <h2 class="text-xl font-bold mb-4 text-yellow-400">等待游戏开始...</h2>
+                        <p class="text-gray-300">说书人正在配置游戏，请稍候。当所有玩家加入后，说书人将开始游戏并分配角色。</p>
                     </div>
-                    <div id="player-action-area" class="mt-4 hidden">
-                         <h3 class="font-semibold text-lg mb-2">你的行动</h3>
-                         <div id="action-controls" class="bg-gray-700 p-4 rounded-lg space-y-3">
-                            <p id="action-prompt" class="text-yellow-300"></p>
-                            <div id="storyteller-info-box" class="text-cyan-300 bg-gray-600 p-3 rounded-md hidden"></div>
-                            <div id="player-choice-controls" class="space-y-2"></div>
-                            <button id="submit-action-btn" class="w-full bg-green-600 hover:bg-green-700 font-bold py-2 px-4 rounded-lg">确认行动</button>
-                         </div>
+                    <div id="player-game-area" class="hidden">
+                        <h2 class="text-xl font-bold mb-4 border-b border-gray-700 pb-2">我的状态</h2>
+                        <div id="self-info-card" class="bg-gray-700 p-4 rounded-lg"></div>
+                        <div class="mt-4 bg-gray-700 p-4 rounded-lg">
+                            <h3 class="font-semibold text-lg">游戏阶段</h3>
+                            <p class="text-gray-400">当前: <span id="player-game-phase-display" class="font-bold text-xl"></span> <span id="player-night-number-display" class="text-sm"></span></p>
+                        </div>
+                        <div id="player-action-area" class="mt-4 hidden">
+                             <h3 class="font-semibold text-lg mb-2">你的行动</h3>
+                             <div id="action-controls" class="bg-gray-700 p-4 rounded-lg space-y-3">
+                                <p id="action-prompt" class="text-yellow-300"></p>
+                                <div id="storyteller-info-box" class="text-cyan-300 bg-gray-600 p-3 rounded-md hidden"></div>
+                                <div id="player-choice-controls" class="space-y-2"></div>
+                                <button id="submit-action-btn" class="w-full bg-green-600 hover:bg-green-700 font-bold py-2 px-4 rounded-lg">确认行动</button>
+                             </div>
+                        </div>
                     </div>
                 </div>
                 {% endif %}
@@ -217,6 +238,7 @@
     <script>
         const IS_STORYTELLER = {{ 'true' if session.is_storyteller else 'false' }};
         const CURRENT_USERNAME = "{{ session.username }}";
+        const GAME_MODE = "{{ session.game_mode }}";
     </script>
     <!-- 引入外部 JS 文件，使用 defer 确保在 HTML 解析后执行 -->
     <script src="{{ url_for('static', filename='js/game_board.js') }}" defer></script>

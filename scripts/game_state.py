@@ -20,7 +20,14 @@ game_state = {
     "roles": ROLES,
     "good_roles": GOOD_ROLES,
     "bad_roles": BAD_ROLES,
-    "role_descriptions": ROLE_DESCRIPTIONS
+    "role_descriptions": ROLE_DESCRIPTIONS,
+
+    # 新增：用于随机分配模式的状态
+    "game_mode": "manual",  # 'manual' or 'random'
+    "total_player_count": 0,
+    "roles_to_assign": [],
+    "assigned_roles": {},  # {username: role}
+    "is_game_ready_to_start": False,
 }
 
 
