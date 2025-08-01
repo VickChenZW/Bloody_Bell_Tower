@@ -5,3 +5,5 @@
 **/__pycache__/**
 /scripts/test.py
 /test
+/node_modules
+/tailwind.config.js

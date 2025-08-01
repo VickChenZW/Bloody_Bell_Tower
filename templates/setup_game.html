@@ -25,7 +25,7 @@
         }
     </style>
 </head>
-<body class="bg-gray-900 text-white">
+<body class="bg-gray-900 text-white pb-48">
     <div class="container mx-auto p-4 sm:p-8 max-w-4xl">
         <h1 class="text-3xl font-bold text-center text-indigo-400 mb-8">配置新游戏 (随机分配模式)</h1>
 
@@ -40,7 +40,7 @@
             <div class="bg-gray-800 p-6 rounded-xl mb-8">
                 <h2 class="text-xl font-medium text-gray-200 mb-4">2. 选择本局游戏的角色</h2>
                 <div id="role-selection-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                    {% for role, desc in role_descriptions.items() %}
+                    <!-- {% for role, desc in role_descriptions.items() %}
                     <div class="role-card border-2 border-gray-700 bg-gray-700 p-3 rounded-lg cursor-pointer has-tooltip relative" onclick="toggleRole(this, '{{ role_types[role] }}')">
                         <input type="checkbox" name="roles" value="{{ role }}" class="hidden">
                         <h4 class="font-bold text-center">{{ role }}</h4>
@@ -49,12 +49,13 @@
                             <p>{{ desc }}</p>
                         </div>
                     </div>
-                    {% endfor %}
+                    {% endfor %} -->
+                    <!-- 使用js动态生成 -->
                 </div>
             </div>
 
             <!-- 步骤三：确认并开始 -->
-            <div class="bg-gray-800 p-6 rounded-xl sticky bottom-4 z-20 shadow-lg border border-gray-700">
+            <div class="bg-gray-800 p-6 fixed bottom-0 left-0 right-0 z-20 shadow-2xl shadow-slate-600 border border-gray-700">
                 <h3 class="text-xl font-medium text-gray-200 mb-4">3. 确认配置</h3>
                 <div class="flex flex-wrap gap-4 justify-between items-center mb-4">
                     <div>
@@ -75,8 +76,17 @@
     </div>
 
     <script>
+        const ROLE_DESCRIPTIONS = {{role_descriptions | tojson}};
+        const ROLE_TYPES = {{role_types | tojson}};
+        const ROLES_IN_ORDER = [
+            '洗衣妇', '图书管理员', '调查员', '厨师', '共情者', '占卜师', '送葬者', '僧侣', '守鸦人', '贞洁者',
+            '猎手', '士兵', '镇长', '管家', '陌客', '酒鬼', '圣徒', '投毒者', '红唇女郎', '间谍', '男爵', '小恶魔'
+        ];
+    </script>
+    <script>
         const playerCountInput = document.getElementById('player_count');
         const selectedCountSpan = document.getElementById('selected-count');
+        const roleGrid = document.getElementById("role-selection-grid")
         const requiredCountSpan = document.getElementById('required-count');
         const goodCountSpan = document.getElementById('good-count');
         const evilCountSpan = document.getElementById('evil-count');
@@ -87,6 +97,32 @@
         let goodCount = 0;
         let evilCount = 0;
 
+        function populateRoleGrid() {
+            roleGrid.innerHTML = ''; // 清空现有内容
+            ROLES_IN_ORDER.forEach(role => {
+                
+                const desc = ROLE_DESCRIPTIONS[role];
+                if (!desc) return;
+                
+                
+                const roleType = ROLE_TYPES[role] || 'good'; // 默认为善良
+                let borderColor = roleType === 'evil' ? 'border-red-900':'border-gray-700';
+
+                const card = document.createElement('div');
+                card.className = `role-card border-2 ${borderColor} bg-gray-800 p-3 rounded-lg cursor-pointer has-tooltip relative`;
+                card.onclick = () => toggleRole(card, roleType);
+
+                card.innerHTML = `
+                    <input type="checkbox" name="roles" value="${role}" class="hidden">  
+                    </style>
+                    <h4 class="font-bold text-center" >${role}</h4>
+                    <h5 class=" text-gray-400 text-xs">${desc}</h5>
+                    </div>
+                `;
+                roleGrid.appendChild(card);
+            });
+        }
+        
         function toggleRole(element, type) {
             const checkbox = element.querySelector('input[type="checkbox"]');
             const role = checkbox.value;
@@ -133,6 +169,7 @@
         }
 
         playerCountInput.addEventListener('input', updateCounts);
+        populateRoleGrid();
         updateCounts(); // Initial call
     </script>
 </body>

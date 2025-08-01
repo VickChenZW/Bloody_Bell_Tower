@@ -70,8 +70,8 @@ socket.on('receive_system_message', (data) => {
     if (IS_STORYTELLER) {
         if(data.type === 'player_action') {
             handlePlayerActionFeedback(data);
-            const controls = document.getElementById('st-action-controls');
-            controls.innerHTML = `<p>玩家已完成操作！进行下一步</p>`;
+            // const controls = document.getElementById('st-action-controls');
+            // controls.innerHTML = `<p>玩家已完成操作！进行下一步</p>`;
         }
     }
     if (!IS_STORYTELLER) {
@@ -324,7 +324,7 @@ function updateNightActionList(state) {
             li.innerHTML = `<span>${roleAction} (${playerForAction.number}号)</span>`;
         } else {
             li.innerHTML = `<span>${roleAction} (无存活玩家)</span>`;
-            li.classList.add('opacity-50');
+            li.classList.add('hidden');
         }
 
         if (roleAction === "恶魔爪牙信息" || playerForAction) {
@@ -475,6 +475,21 @@ function renderStorytellerActionArea(role, targetUsername) {
             controls.innerHTML = `<p id="st-ft-prompt">已唤醒玩家，等待其选择目标...</p>`;         
             submitBtn.classList.add('hidden');
             break;
+        case '送葬者':
+            controls.innerHTML = `<p>选择一个角色名告知目标:</p><select id="st-role" class="w-full bg-gray-600 p-2 rounded">${allRoleOptions}</select>`;
+            submitBtn.textContent = '发送信息';
+            submitBtn.onclick = () => {
+                const r = document.getElementById('st-role').value;
+                const message = `说书人展示的角色是: ${r}`;
+                socket.emit('storyteller_action', { action: 'info_to_player', target_username: targetUsername, message: message, role_action: role });
+                area.classList.add('hidden');
+            };
+            break;
+        case '守鸦人':
+            socket.emit('storyteller_action', { action: 'wake_player', target_username: targetUsername, role_action: role });
+            controls.innerHTML = `<p id="st-ft-prompt">已唤醒玩家，等待其选择目标...</p>`;         
+            submitBtn.classList.add('hidden');
+            break;
         default:
             socket.emit('storyteller_action', { action: 'wake_player', target_username: targetUsername, role_action: role });
             controls.innerHTML = `<p>已唤醒玩家 ${targetUsername}，等待其操作...</p>`;
@@ -483,11 +498,14 @@ function renderStorytellerActionArea(role, targetUsername) {
 }
 
 function handlePlayerActionFeedback(data) {
-    if (data.from_role === '占卜师') 
-    {
-        const targetUsername = Object.values(GAME_STATE.players).find(p => p.role === '占卜师').username;
-        const controls = document.getElementById('st-action-controls');
-        const prompt = document.getElementById('st-ft-prompt');
+    const role = data.from_role
+    let targetUsername;
+    const controls = document.getElementById('st-action-controls');
+    const prompt = document.getElementById('st-ft-prompt');
+    const submitBtn = document.getElementById('st-action-submit-btn');
+    switch(role){
+    case "占卜师":
+        targetUsername = Object.values(GAME_STATE.players).find(p => p.role === '占卜师').username;    
         prompt.innerHTML = `玩家 (${targetUsername}) 选择了: <br> <span class="text-cyan-400">${data.targets.join(' 和 ')}</span> <br>请回复:`;
         controls.innerHTML += `<div class="flex gap-4"><button id="st-yes" class="flex-1 bg-green-600 p-2 rounded">是</button><button id="st-no" class="flex-1 bg-red-600 p-2 rounded">否</button></div>`;
         document.getElementById('st-yes').onclick = () => sendFortuneTellerResult('是', targetUsername);
@@ -495,8 +513,24 @@ function handlePlayerActionFeedback(data) {
         function sendFortuneTellerResult(result, username) {
             socket.emit('storyteller_action', { action: 'fortune_teller_result', target_username: username, result: result });
             document.getElementById('st-dynamic-action-area').classList.add('hidden');
-        }
+        };
+        break;
+    case "守鸦人":
+        targetUsername = Object.values(GAME_STATE.players).find(p => p.role === '守鸦人').username;
+        prompt.innerHTML = `玩家 (${targetUsername}) 选择了: <br> <span class="text-cyan-400">${data.targets.join(' 和 ')}</span>`;
+        const allRoleOptions = GAME_STATE.roles.map(r => `<option value="${r}">${r}</option>`).join('');
+        controls.innerHTML = `<select id="st-role" class="w-full bg-gray-600 p-2 rounded">${allRoleOptions}</select>`;
+        submitBtn.classList.remove("hidden");
+        submitBtn.textContent = '发送信息';
+        submitBtn.onclick = () => {
+            const r = document.getElementById('st-role').value;
+            const message = `说书人展示的角色是: ${r}`;
+            socket.emit('storyteller_action', { action: 'info_to_player', target_username: targetUsername, message: message, role_action: role });
+            area.classList.add('hidden');
+        };
+        break;
     }
+
 }
 
 // 渲染玩家行动区域（玩家）

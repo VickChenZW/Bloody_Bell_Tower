@@ -90,10 +90,10 @@
         </header>
 
         <!-- 主内容区 -->
-        <main class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <main class="flex flex-col gap-5">
 
-            <!-- 左侧面板 (优化布局顺序) -->
-            <aside class="lg:col-span-1 bg-gray-800 p-4 sm:p-6 rounded-xl order-1">
+            <!-- 信息面板 (优化布局顺序) -->
+            <aside class="bg-gray-800 p-4 sm:p-6 rounded-xl w-full">
                 {% if session.is_storyteller %}
                 <!-- ########## 说书人控制面板 ########## -->
                 <div id="storyteller-controls">
@@ -159,8 +159,8 @@
             </aside>
 
             <!-- 中间面板 -->
-            <section class="lg:col-span-2 bg-gray-800 p-4 sm:p-6 rounded-xl order-2">
-                 <h2 class="text-xl font-bold mb-4 text-center">
+            <section class="bg-gray-800 p-4 sm:p-6 rounded-xl w-full">
+                <h2 class="text-xl font-bold mb-4 text-center">
                     {% if session.is_storyteller %}玩家席位{% else %}所有玩家{% endif %}
                 </h2>
                 {% if session.is_storyteller %}
@@ -173,12 +173,12 @@
             </section>
 
             <!-- 底部日志面板 -->
-            <div class="lg:col-span-3 bg-gray-800 p-4 sm:p-6 rounded-xl order-3">
+            <div class="bg-gray-800 p-4 sm:p-6 rounded-xl w-full">
                 <h2 class="text-xl font-bold mb-4">游戏日志</h2>
                 <div id="log-box" class="h-48 bg-gray-900 rounded-lg p-4 overflow-y-auto flex flex-col-reverse"></div>
             </div>
             <!-- 所有角色玩法说明 -->
-             <div class="lg:col-span-3 bg-gray-800 p-4 sm:p-6 rounded-xl order-3">
+            <div class="bg-gray-800 p-4 sm:p-6 rounded-xl w-full">
                 <h2 clas="test-xl font-bold md-4">游戏介绍</h2>
                 <div class=" flex flex-row gap-2">  
                     <button id="help_btn" onclick="getHelp()" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">显示玩家使用说明</button>
