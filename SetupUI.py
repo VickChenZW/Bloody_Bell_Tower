@@ -4,7 +4,7 @@ import multiprocessing
 import socket
 import os
 from PySide6.QtWidgets import (QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout,
-                               QWidget, QLabel, QLineEdit)
+                            QWidget, QLabel, QLineEdit)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 
