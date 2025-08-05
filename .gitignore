@@ -93,6 +93,7 @@ Desktop.ini
 !.vscode/launch.json
 !.vscode/extensions.json
 *.code-workspace
+**/.vscode
 
 # JetBrains IDEs (WebStorm, PyCharm 等)
 .idea/

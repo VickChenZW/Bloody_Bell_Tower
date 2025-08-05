@@ -20,6 +20,11 @@ export const useSetupStore = defineStore('setup', {
       // 静态配置 (也可以直接从 config 导入使用)
       roles: config.ROLES,
       roleDescriptions: config.ROLE_DESCRIPTIONS,
+
+      // 游戏设置阶段的状态
+      selectedRoles: {}, // { 'player_name': 'role' }
+      playerCount: 0, // 需要选择的玩家数量
+      
     }),
   
   

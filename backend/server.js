@@ -133,6 +133,11 @@ io.on('connection', (socket) => {
       io.emit('update_state', gameState);
     }
   });
+
+  socket.on('setup', (data) => {
+    console.log('[设置] 收到游戏设置:', data);
+  })
+
 });
 
 
