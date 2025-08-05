@@ -10,20 +10,14 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'game-board',
-      component: SetupView,
+      name: 'LoginView',
+      component: LoginView,
       // meta: { requiresAuth: true } // 标记这个页面需要登录
-    },
-    {
-      path: '/login',
-      name: 'login',
-      component: SetupView
     },
     {
       path: '/setup',
       name: 'setup',
-      component: () => import('../views/SetupView.vue'),
-      meta: { requiresAuth: true, requiresStoryteller: true }
+      component: SetupView
     }
   ]
 })
@@ -43,10 +37,10 @@ router.beforeEach((to, from, next) => {
     next({ name: 'game-board' });
   } 
   // 情况2：用户未登录，但想访问一个需要登录的页面
-  else if (needsAuth && !isAuthenticated) {
-    // 阻止他们，并直接送去登录页
-    next({ name: 'login' });
-  } 
+  // else if (needsAuth && !isAuthenticated) {
+  //   // 阻止他们，并直接送去登录页
+  //   next({ name: 'login' });
+  // } 
   // 情况3：其他所有情况 (已登录访问受保护页，或未登录访问公共页)
   else {
     // 正常放行

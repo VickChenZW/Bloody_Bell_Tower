@@ -6,7 +6,7 @@
   <body class="bg-gray-900 text-white pb-96 flex flex-col">
     <div class="container mx-auto p-4 sm:p-8 max-w-4xl">
         <h1 class="text-3xl font-bold text-center text-indigo-400 mb-8">配置新游戏 (随机分配模式)</h1>
-        <form action="/setup_game" method="POST">
+        <form @submit="handleLogin">
             <!-- 步骤一：设置玩家人数 -->
             <div class="bg-gray-800 p-6 rounded-xl mb-8">
                 <label for="player_count" class="block text-xl font-medium text-gray-200 mb-3">1. 设置总玩家人数</label>

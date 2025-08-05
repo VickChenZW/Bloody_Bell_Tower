@@ -128,7 +128,8 @@ const handleJoinAsPlayer = () => {
 
   // TODO: 向后端发送 'join_as_player' 事件，并附上 playerData
   setupStore.joinGame(payload)
-  alert(`玩家 ${payload.name} (序号${payload.number}) 已加入！身份: ${playerData.role}`);
+  alert(`玩家 ${payload.name} (序号${payload.number}) 已加入！身份: ${payload.role}`);
+  router.push('/game-board');
   
   // 跳转到玩家等待页面 (待开发)
   // router.push('/waiting-room');
@@ -149,7 +150,8 @@ const handleJoinAsStoryteller = () => {
   setupStore.joinGame(payload)
 
   // TODO: 向后端发送 'join_as_storyteller' 事件
-  setupStore.setStoryteller(storytellerForm.username);
+  // setupStore.setStoryteller(storytellerForm.username);
+  router.push('/setup');
   alert(`说书人 ${storytellerForm.username} 已登录，即将进入设置页面。`);
 
   // 跳转到游戏设置页面
