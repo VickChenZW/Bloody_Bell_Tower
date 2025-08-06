@@ -91,6 +91,7 @@ import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useSetupStore } from '@/stores/gameStore';
 import { useAuthStore } from '@/stores/auth';
+import { socketService } from '@/services/socketService'; // 导入 socket 服务
 
 // --- Reactive State ---
 const gameMode = ref('random'); // 'random' or 'manual'
@@ -140,6 +141,8 @@ const handleLogin = async () => {
     const data = await response.json();
     if (data.success){
       authStore.loginSuccess(data.token);
+
+      socketService.connect();
 
       // 根据用户角色跳转到不同页面
       if (userRole.value === 'player') {
