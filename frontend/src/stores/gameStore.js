@@ -17,6 +17,9 @@ export const useSetupStore = defineStore('setup', {
       gameMode: 'manual',
       storyteller: null, // { id, name }
       
+      // 当前用户信息
+      currentUser: null, // { name, role, isStoryteller }
+      
       // 静态配置 (也可以直接从 config 导入使用)
       roles: config.ROLES,
       roleDescriptions: config.ROLE_DESCRIPTIONS,
@@ -49,7 +52,34 @@ export const useSetupStore = defineStore('setup', {
         this.storyteller = newState.storyteller_username ? { name: newState.storyteller_username } : null;
         this.currentVote = newState.current_vote;
         this.gameMode = newState.game_mode;
-      });
+        
+        // 更新当前用户信息
+         // 注意：这需要后端在newState中包含当前用户的信息，
+         // 或者前端能够通过socket.id或其他方式识别当前用户
+         // 由于前端在连接时发送了token，后端知道每个socket连接的用户信息
+         // 一种方法是后端在update_state事件中包含当前用户的信息
+         // 另一种方法是前端通过socket.id在newState.players中查找
+        if (newState.currentUser) {
+          this.currentUser = newState.currentUser;
+        } else {
+          // 如果后端没有提供currentUser，尝试通过socket.id查找
+          // 注意：这需要后端在players对象中使用socket.id作为键
+          const player = newState.players[socket.id];
+          if (player) {
+            this.currentUser = {
+              name: player.name,
+              role: player.role,
+              isStoryteller: false // 玩家不是说书人
+            };
+          } else if (newState.storyteller_sid === socket.id) {
+            this.currentUser = {
+              name: newState.storyteller_username,
+              role: 'storyteller',
+              isStoryteller: true // 说书人
+            };
+          }
+        }
+    });
     },
 
     // 供 LoginView 调用，用于加入游戏

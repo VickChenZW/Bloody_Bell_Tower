@@ -12,6 +12,7 @@ import jwt from "jsonwebtoken";
 // --- 初始化服务器 ---
 const app = express();
 app.use(cors());
+app.use(express.json());
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*" }
@@ -20,12 +21,30 @@ const io = new Server(server, {
 // --- 配置 ---
 const SECRET_KEY = 'a-very-secret-key-for-your-game';
 
-app.post('/api/login', (req, res) => {
-  const { username, isStoryteller } = req.body;
-
-  if (!username) {
-    return res.status(400).json({ success: false, message: '用户名不能为空' });
+// 添加Socket.IO中间件来验证token
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('认证失败'));
   }
+  jwt.verify(token, SECRET_KEY, (err, decoded) => {
+    if (err) {
+      return next(new Error('认证失败'));
+    }
+    socket.decoded = decoded;
+    next();
+  });
+});
+
+
+
+app.post('/api/login', (req, res) => {
+  const username = req.body.username;
+  const isStoryteller = req.body.isStoryteller;
+  console.log(username, isStoryteller)
+  // if (!username) {
+  //   return res.status(400).json({ success: false, message: '用户名不能为空' });
+  // }
 
   // 检查用户名是否已被占用
   const nameExists = Object.values(gameState.players).some(p => p.name === username) || gameState.storyteller_username === username;
@@ -35,11 +54,14 @@ app.post('/api/login', (req, res) => {
 
   // 用户名可用，生成 Token
   const role = isStoryteller ? 'storyteller' : 'player';
+  console.log('生成 Token 前:', { username, role });
+
   const token = jwt.sign(
     { username, role }, // Token 中包含的信息
     SECRET_KEY,
     { expiresIn: '6h' } // Token 有效期6小时
   );
+  console.log('生成 Token 后:', token);
 
   res.json({ success: true, token });
 });
@@ -64,7 +86,16 @@ io.on('connection', (socket) => {
   console.log(`[连接] 新客户端连接: ${socket.id}`);
 
   // 立即将当前游戏状态发送给新连接的客户端
-  socket.emit('update_state', gameState);
+  // 为当前用户添加特定信息
+  const currentUserState = {
+    ...gameState,
+    currentUser: socket.decoded ? {
+      name: socket.decoded.username,
+      role: socket.decoded.role,
+      isStoryteller: socket.decoded.role === 'storyteller'
+    } : null
+  };
+  socket.emit('update_state', currentUserState);
 
   // 监听 'join_game' 事件
   socket.on('join_game', (data) => {
@@ -93,7 +124,16 @@ io.on('connection', (socket) => {
     }
 
     // 将更新后的游戏状态广播给所有客户端
-    io.emit('update_state', gameState);
+    // 为每个用户添加特定信息
+    const broadcastState = {
+      ...gameState,
+      currentUser: socket.decoded ? {
+        name: socket.decoded.username,
+        role: socket.decoded.role,
+        isStoryteller: socket.decoded.role === 'storyteller'
+      } : null
+    };
+    io.emit('update_state', broadcastState);
   });
 
   // 监听 'start_game_setup' 事件

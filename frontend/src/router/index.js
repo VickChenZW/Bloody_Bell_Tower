@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import LoginView from '../views/LoginView.vue'
 import SetupView from '../views/SetupView.vue'
-// import GameBoardView from '../views/GameBoardView.vue' 
+import GameBoardView from '../views/GameBoardView.vue' 
 // 1. 导入我们新建的、专门负责认证的 authStore
 import { useAuthStore } from '@/stores/auth'
 
@@ -18,6 +18,12 @@ const router = createRouter({
       path: '/setup',
       name: 'setup',
       component: SetupView
+    },
+    {
+      path: '/game-board',
+      name: 'game-board',
+      component: GameBoardView,
+      meta: { requiresAuth: true } // 标记这个页面需要登录
     }
   ]
 })
@@ -32,15 +38,15 @@ router.beforeEach((to, from, next) => {
   const needsAuth = to.meta.requiresAuth;
 
   // 情况1：用户已登录，但想访问登录页
-  if (to.name === 'login' && isAuthenticated) {
+  if (to.name === 'LoginView' && isAuthenticated) {
     // 阻止他们，并直接送回游戏主板
     next({ name: 'game-board' });
   } 
   // 情况2：用户未登录，但想访问一个需要登录的页面
-  // else if (needsAuth && !isAuthenticated) {
-  //   // 阻止他们，并直接送去登录页
-  //   next({ name: 'login' });
-  // } 
+  else if (needsAuth && !isAuthenticated) {
+    // 阻止他们，并直接送去登录页
+    next({ name: 'LoginView' });
+  } 
   // 情况3：其他所有情况 (已登录访问受保护页，或未登录访问公共页)
   else {
     // 正常放行

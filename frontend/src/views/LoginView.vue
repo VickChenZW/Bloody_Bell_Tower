@@ -41,7 +41,7 @@
         </div>
 
         <!-- 玩家表单 -->
-        <form v-if="userRole === 'player'" @submit.prevent="handleJoinAsPlayer" class="space-y-6">
+        <form v-if="userRole === 'player'" @submit.prevent="handleLogin" class="space-y-6">
           <div>
             <label for="player-username" class="mb-2 block text-sm font-medium text-gray-300">你的名字</label>
             <input type="text" id="player-username" v-model="playerForm.username" class="w-full rounded-lg border border-gray-600 bg-gray-700 px-4 py-3 text-white" placeholder="例如：比巴卜" required>
@@ -71,7 +71,7 @@
         </form>
 
         <!-- 说书人表单 -->
-        <form v-if="userRole === 'storyteller'" @submit.prevent="handleJoinAsStoryteller" class="space-y-6">
+        <form v-if="userRole === 'storyteller'" @submit.prevent="handleLogin" class="space-y-6">
           <div>
             <label for="storyteller-username" class="mb-2 block text-sm font-medium text-gray-300">说书人代号</label>
             <input type="text" id="storyteller-username" v-model="storytellerForm.username" class="w-full rounded-lg border border-gray-600 bg-gray-700 px-4 py-3 text-white" required>
@@ -91,7 +91,6 @@ import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useSetupStore } from '@/stores/gameStore';
 import { useAuthStore } from '@/stores/auth';
-
 
 // --- Reactive State ---
 const gameMode = ref('random'); // 'random' or 'manual'
@@ -113,6 +112,50 @@ const storytellerForm = reactive({
 });
 
 // --- Methods ---
+const handleLogin = async () => {
+  try{
+    // 根据用户角色准备不同的登录数据
+    let loginData;
+    if (userRole.value === 'player') {
+      loginData = {
+        username: playerForm.username,
+        isStoryteller: false
+      };
+    } else {
+      loginData = {
+        username: storytellerForm.username,
+        isStoryteller: true
+      };
+    }
+    console.log(loginData);
+
+    const response = await fetch('http://localhost:5000/api/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(loginData),
+    });
+
+    const data = await response.json();
+    if (data.success){
+      authStore.loginSuccess(data.token);
+
+      // 根据用户角色跳转到不同页面
+      if (userRole.value === 'player') {
+        handleJoinAsPlayer();
+      } else {
+        handleJoinAsStoryteller();
+      }
+    } else {
+      alert('登录失败');
+    }
+  } catch (error){
+    console.error('登录失败:', error);
+    alert('登录失败: ' + error.message);
+  }
+}
+
 const handleJoinAsPlayer = () => {
   if (!playerForm.username || playerForm.number === null) {
     alert('请填写你的名字和序号！');
