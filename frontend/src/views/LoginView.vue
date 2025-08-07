@@ -89,123 +89,73 @@
 <script setup>
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
-import { useSetupStore } from '@/stores/gameStore';
+import { useGameStore } from '@/stores/gameStore';
 import { useAuthStore } from '@/stores/auth';
-import { socketService } from '@/services/socketService'; // 导入 socket 服务
+import { socketService } from '@/services/socketService';
 
-// --- Reactive State ---
-const gameMode = ref('random'); // 'random' or 'manual'
-const userRole = ref('player'); // 'player' or 'storyteller'
+// --- 状态 ---
+const gameMode = ref('random');
+const userRole = ref('player');
 const router = useRouter();
-const setupStore = useSetupStore();
-const authStore = useAuthStore()
-
-const availableRoles = ref(['洗衣妇', '图书管理员', '调查员', '厨师', '共情者', '占卜师', '送葬者', '僧侣', '守鸦人', '贞洁者', '猎手', '士兵', '镇长', '管家', '陌客', '酒鬼', '圣徒', '投毒者', '红唇女郎', '间谍', '男爵', '小恶魔']);
+const gameStore = useGameStore();
+const authStore = useAuthStore();
 
 const playerForm = reactive({
   username: '',
   number: null,
-  role: availableRoles.value[0], // Default role
+  role: '洗衣妇', // 默认值
 });
 
 const storytellerForm = reactive({
   username: '说书人',
 });
 
-// --- Methods ---
+// --- 方法 ---
 const handleLogin = async () => {
-  try{
-    // 根据用户角色准备不同的登录数据
-    let loginData;
-    if (userRole.value === 'player') {
-      loginData = {
-        username: playerForm.username,
-        isStoryteller: false,
-        role: gameMode.value === 'manual' ? playerForm.role : null,
-        number: playerForm.number
-      };
-    } else {
-      loginData = {
-        username: storytellerForm.username,
-        isStoryteller: true,
-        role: 'storyteller',
-        number: 0
-      };
+  try {
+    const isStoryteller = userRole.value === 'storyteller';
+    const username = isStoryteller ? storytellerForm.username : playerForm.username;
+
+    if (!username || (!isStoryteller && !playerForm.number)) {
+      alert('信息填写不完整！');
+      return;
     }
-    console.log(loginData);
 
-    const response = await fetch('http://localhost:5000/api/login', {
+    // 从环境变量中获取API基础URL，如果没有设置则使用默认值
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+    
+    // 调用 API 获取 Token
+    const response = await fetch(`${API_BASE_URL}/api/login`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(loginData),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, isStoryteller }),
     });
-
     const data = await response.json();
-    if (data.success){
-      authStore.loginSuccess(data.token);
 
-      socketService.connect();
+    if (!response.ok) throw new Error(data.message || '登录失败');
 
-      // 根据用户角色跳转到不同页面
-      if (loginData.isStoryteller) {
-        handleJoinAsStoryteller();
+    // 更新 auth store 并连接 socket
+    authStore.loginSuccess(data.token);
+    socketService.connect();
+
+    // 根据角色进行跳转和后续操作
+    if (isStoryteller) {
+      if (gameMode.value === 'random'){
+        router.push('/setup');
       } else {
-        handleJoinAsPlayer();
+        router.push('/game-board');
       }
     } else {
-      alert('登录失败');
+      // 玩家登录后，立即发送自己的详细信息
+      socketService.emit('player_details', {
+        number: playerForm.number,
+        role: gameMode.value === 'manual' ? playerForm.role : '待分配',
+      });
+      router.push('/game-board');
     }
-  } catch (error){
+  } catch (error) {
     console.error('登录失败:', error);
-    alert('登录失败: ' + error.message);
+    alert(`登录失败: ${error.message}`);
   }
-}
-
-const handleJoinAsPlayer = () => {
-  if (!playerForm.username || playerForm.number === null) {
-    alert('请填写你的名字和序号！');
-    return;
-  }
-  
-  const payload = {
-    gameMode: gameMode.value,
-    name: playerForm.username,
-    number: playerForm.number,
-    role: gameMode.value === 'manual' ? playerForm.role : null
-  };
-
-  // TODO: 向后端发送 'join_as_player' 事件，并附上 playerData
-  setupStore.joinGame(payload)
-  alert(`玩家 ${payload.name} (序号${payload.number}) 已加入！身份: ${payload.role}`);
-  router.push('/game-board');
-  
-  // 跳转到玩家等待页面 (待开发)
-  // router.push('/waiting-room');
-};
-
-const handleJoinAsStoryteller = () => {
-  if (!storytellerForm.username) {
-    alert('请输入说书人代号！');
-    return;
-  }
-
-  const payload = {
-    gameMode: gameMode.value,
-    name: storytellerForm.username,
-    number: 0,
-    role: 'storyteller' // 明确角色是说书人
-  };
-  
-  setupStore.joinGame(payload)
-
-  // TODO: 向后端发送 'join_as_storyteller' 事件
-  // setupStore.setStoryteller(storytellerForm.username);
-  router.push('/setup');
-  alert(`说书人 ${storytellerForm.username} 已登录，即将进入设置页面。`);
-
-  // 跳转到游戏设置页面
-  router.push('/setup');
 };
 </script>

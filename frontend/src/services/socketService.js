@@ -2,7 +2,10 @@
 
 import { io } from "socket.io-client";
 import { useAuthStore } from '@/stores/auth';
-import { useSetupStore } from '@/stores/gameStore';
+import { useGameStore } from '@/stores/gameStore';
+
+// 从环境变量中获取API基础URL，如果没有设置则使用默认值
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 // 将 socket 实例放在服务内部管理，而不是全局导出
 let socket = null;
@@ -11,7 +14,7 @@ export const socketService = {
   connect() {
     // 获取 Pinia store
     const authStore = useAuthStore();
-    const gameStore = useSetupStore();
+    const gameStore = useGameStore();
 
     // 如果没有 token 或者已经连接，则不执行任何操作
     if (!authStore.isAuthenticated || (socket && socket.connected)) {
@@ -22,7 +25,7 @@ export const socketService = {
     console.log('Attempting to connect with token:', authStore.token);
 
     // 创建新的 Socket 连接，并通过 auth 对象传递 token
-    socket = io("http://localhost:5000", {
+    socket = io(API_BASE_URL, {
       // 核心改动：在 auth 对象中携带 token
       auth: {
         token: authStore.token
@@ -70,7 +73,7 @@ export const socketService = {
     if (socket) {
       socket.emit(event, data);
     } else {
-      console.error('Socket not connected, cannot emit event:', event);
+      console.error('Socket没有连接，无法发送事件:', event);
     }
   }
 };

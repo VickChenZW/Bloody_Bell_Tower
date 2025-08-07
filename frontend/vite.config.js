@@ -17,4 +17,8 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  server: {
+  // 设置为 true 或 '0.0.0.0'，Vite 将会监听所有地址，包括局域网和公网地址
+  host: true, 
+  }
 })
