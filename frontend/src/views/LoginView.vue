@@ -120,12 +120,16 @@ const handleLogin = async () => {
     if (userRole.value === 'player') {
       loginData = {
         username: playerForm.username,
-        isStoryteller: false
+        isStoryteller: false,
+        role: gameMode.value === 'manual' ? playerForm.role : null,
+        number: playerForm.number
       };
     } else {
       loginData = {
         username: storytellerForm.username,
-        isStoryteller: true
+        isStoryteller: true,
+        role: 'storyteller',
+        number: 0
       };
     }
     console.log(loginData);
@@ -145,10 +149,10 @@ const handleLogin = async () => {
       socketService.connect();
 
       // 根据用户角色跳转到不同页面
-      if (userRole.value === 'player') {
-        handleJoinAsPlayer();
-      } else {
+      if (loginData.isStoryteller) {
         handleJoinAsStoryteller();
+      } else {
+        handleJoinAsPlayer();
       }
     } else {
       alert('登录失败');
@@ -190,6 +194,7 @@ const handleJoinAsStoryteller = () => {
   const payload = {
     gameMode: gameMode.value,
     name: storytellerForm.username,
+    number: 0,
     role: 'storyteller' // 明确角色是说书人
   };
   
