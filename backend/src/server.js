@@ -33,7 +33,7 @@ io.use((socket, next) => {
   });
 });
 
-// --- API 路由 (增加用户名冲突检查) ---
+// --- API 路由  生成token！！！  ---
 app.post('/api/login', (req, res) => {
   const { username, isStoryteller } = req.body;
   if (!username) {

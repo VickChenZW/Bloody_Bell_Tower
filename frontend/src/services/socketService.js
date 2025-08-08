@@ -1,4 +1,4 @@
-// frontend/src/services/socketService.js
+// frontend/src/services/socketService.js 处理前端的socket连接事件处理
 
 import { io } from "socket.io-client";
 import { useAuthStore } from '@/stores/auth';

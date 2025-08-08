@@ -26,14 +26,14 @@
         <div class="mb-6">
           <div class="flex border-b border-gray-700">
             <button
-              @click="userRole = 'player'"
-              :class="['flex-1 border-b-2 py-3 text-lg font-semibold', userRole === 'player' ? 'border-indigo-500 text-indigo-100' : 'border-transparent text-gray-400']"
+              @click="isStoryteller = false"
+              :class="['flex-1 border-b-2 py-3 text-lg font-semibold', !isStoryteller ? 'border-indigo-500 text-indigo-100' : 'border-transparent text-gray-400']"
             >
               我是玩家
             </button>
             <button
-              @click="userRole = 'storyteller'"
-              :class="['flex-1 border-b-2 py-3 text-lg font-semibold', userRole === 'storyteller' ? 'border-rose-500 text-rose-100' : 'border-transparent text-gray-400']"
+              @click="isStoryteller = true"
+              :class="['flex-1 border-b-2 py-3 text-lg font-semibold', isStoryteller ? 'border-rose-500 text-rose-100' : 'border-transparent text-gray-400']"
             >
               我是说书人
             </button>
@@ -41,7 +41,7 @@
         </div>
 
         <!-- 玩家表单 -->
-        <form v-if="userRole === 'player'" @submit.prevent="handleLogin" class="space-y-6">
+        <form v-if="!isStoryteller" @submit.prevent="handleLogin" class="space-y-6">
           <div>
             <label for="player-username" class="mb-2 block text-sm font-medium text-gray-300">你的名字</label>
             <input type="text" id="player-username" v-model="playerForm.username" class="w-full rounded-lg border border-gray-600 bg-gray-700 px-4 py-3 text-white" placeholder="例如：比巴卜" required>
@@ -71,7 +71,7 @@
         </form>
 
         <!-- 说书人表单 -->
-        <form v-if="userRole === 'storyteller'" @submit.prevent="handleLogin" class="space-y-6">
+        <form v-if="isStoryteller" @submit.prevent="handleLogin" class="space-y-6">
           <div>
             <label for="storyteller-username" class="mb-2 block text-sm font-medium text-gray-300">说书人代号</label>
             <input type="text" id="storyteller-username" v-model="storytellerForm.username" class="w-full rounded-lg border border-gray-600 bg-gray-700 px-4 py-3 text-white" required>
@@ -95,7 +95,8 @@ import { socketService } from '@/services/socketService';
 
 // --- 状态 ---
 const gameMode = ref('random');
-const userRole = ref('player');
+// const userRole = ref('player');
+const isStoryteller = ref(false);
 const router = useRouter();
 const gameStore = useGameStore();
 const authStore = useAuthStore();
@@ -113,7 +114,7 @@ const storytellerForm = reactive({
 // --- 方法 ---
 const handleLogin = async () => {
   try {
-    const isStoryteller = userRole.value === 'storyteller';
+    // const isStoryteller = userRole.value === 'storyteller';
     const username = isStoryteller ? storytellerForm.username : playerForm.username;
 
     if (!username || (!isStoryteller && !playerForm.number)) {
@@ -128,7 +129,7 @@ const handleLogin = async () => {
     const response = await fetch(`${API_BASE_URL}/api/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, isStoryteller }),
+      body: JSON.stringify({ username, isStoryteller: isStoryteller.value }),
     });
     const data = await response.json();
 
@@ -137,8 +138,11 @@ const handleLogin = async () => {
     // 更新 auth store 并连接 socket
     authStore.loginSuccess(data.token);
     socketService.connect();
+    
+    // 玩家登录后，立即发送自己的详细信息
+    socketService.emit('player_join', { ...handleLoginInfo() });
 
-    // 根据角色进行跳转和后续操作
+    // 根据角色和游戏模式进行跳转
     if (isStoryteller) {
       if (gameMode.value === 'random'){
         router.push('/setup');
@@ -147,10 +151,10 @@ const handleLogin = async () => {
       }
     } else {
       // 玩家登录后，立即发送自己的详细信息
-      socketService.emit('player_details', {
-        number: playerForm.number,
-        role: gameMode.value === 'manual' ? playerForm.role : '待分配',
-      });
+      //   socketService.emit('player_details', {
+      //     number: playerForm.number,
+      //     role: gameMode.value === 'manual' ? playerForm.role : '待分配',
+      // });
       router.push('/game-board');
     }
   } catch (error) {
@@ -158,4 +162,16 @@ const handleLogin = async () => {
     alert(`登录失败: ${error.message}`);
   }
 };
+
+const handleLoginInfo = () => {
+  // 处理登录信息
+  return { 
+          username:playerForm.username,
+          number: playerForm.number,
+          role:isStoryteller? '说书人' : (gameMode.value === 'manual' ? playerForm.role : '待分配'), 
+          isStoryteller: isStoryteller,
+          imp: playerForm.role === "小恶魔" ? ['is_evil'] : [],
+          sid: null
+        };
+}
 </script>

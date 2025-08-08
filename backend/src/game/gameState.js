@@ -2,7 +2,8 @@
 
 // 1. 定义初始的游戏状态结构
 const initialState = {
-    players: {}, // { 'socket.id': { name, number, role, is_dead, ... } }
+    players: {}, // { username: { number, role, sid, Istoryteller,imp{dead..} } }
+
     storyteller: {
         sid: null,
         username: null,
@@ -53,7 +54,6 @@ export const gameManager = {
         if (!gameState.players[username]) {
         gameState.players[username] = {
             username,
-            isDead: false,
             ...playerData,
         };
         console.log(`[GameState] 玩家 ${username} 已添加.`);

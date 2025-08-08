@@ -5,17 +5,24 @@ import { defineStore } from 'pinia';
 export const useGameStore = defineStore('game', {
   state: () => ({
     // 完整地镜像后端 gameState 结构
-    players: {},
-    gamePhase: "waiting",
-    nightNumber: 0,
-    actionLogs: [],
-    storyteller: null,
-    gameConfig: {
-      playerCount: 0,
-      roles: [],
+    players: {}, // { username: { number, role, sid, isStoryteller, isDead, ... } }
+    storyteller: {
+        sid: null,
+        username: null,
     },
-    currentUser: null, // 当前登录用户的信息
-    isConnected: false,
+    
+    gamePhase: "waiting",// '游戏轮次 waiting day night
+    nightNumber: 0,// 夜数
+    actionLogs: [], // 游戏日志[{ action, player, target, timestamp }]
+    night_actions_completed: [],
+    current_vote: null,
+
+    gameMode: "manual",
+    gameConfig: {
+        total_player_count: 0,
+        roles_to_assign: [],
+        assigned_roles: {},  // {username: role}
+    },
   }),
   
   getters: {

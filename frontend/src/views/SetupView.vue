@@ -89,7 +89,7 @@ const demonCount = ref(0);
 
 
 const isConfigValid = computed(() => {
-    return playerCount.value && selectedRoles.value.size === playerCount.value;
+    return playerCount.value && selectedRoles.size === playerCount;
 });
 
 const errorMessage = computed(() => {
@@ -120,7 +120,7 @@ const toggleRole = (role) => {
 }
 
 function submitConfig() {
-    if (!isConfigValid.value) return;
+    // if (!isConfigValid) return;
     
     const config = {
         playerCount: playerCount.value,
@@ -132,6 +132,7 @@ function submitConfig() {
 
     // 跳转到游戏面板
     router.push('/game-board');
+    console.log('ok!!');
 }
 </script>
 
