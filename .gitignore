@@ -7,3 +7,10 @@
 /test
 /node_modules
 /tailwind.config.js
+
+# vue
+.*
+!.gitignore
+vite.config.ts
+tsconfig*
+playwright.config.ts
