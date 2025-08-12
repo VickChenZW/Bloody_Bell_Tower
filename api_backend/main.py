@@ -21,6 +21,10 @@ app.add_middleware(
     allow_methods=["POST", "GET", "OPTIONS"],  # 允许的 HTTP 方法
     allow_headers=["*"],  # 允许所有头部
 )
+async def get_current_user(token:str = Depends(security.oauth2_scheme)):
+    """获取当前用户。"""
+    return security.decode_token(token)
+
 
 @app.post("/api/login")
 async def login(payload: dict):
@@ -35,6 +39,28 @@ async def login(payload: dict):
         return {"token": token}
     else:
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+@app.post("/api/setup")
+def setup(payload: dict, current_user: dict = Depends(get_current_user)):
+    if payload.get("isStoryteller"):
+        return {"message": "setup"}
+    else:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+
+
+@app.get("/api/action")
+async def protected_route(playload: dict, current_user: dict =Depends(get_current_user)):
+    """受保护的路由。"""
+    return {"message": "protected route"}
+
+@app.post("api/authenticate")
+def authenticate(payload: dict, current_user: dict =Depends(get_current_user)):
+    """认证路由。"""
+    return {"message": "authenticate"}
+
+
+
 
 
 if __name__ == "__main__":

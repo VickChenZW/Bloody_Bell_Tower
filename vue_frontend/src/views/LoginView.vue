@@ -88,6 +88,8 @@
 
 <script setup>
 import { ref, reactive } from 'vue';
+import { userStore } from '@/stores/userStore';
+
 // import { useRouter } from 'vue-router';
 // import { useGameStore } from '@/stores/gameStore';
 // import { useAuthStore } from '@/stores/auth';
@@ -195,6 +197,11 @@ const handleLogin = async () => {
         if (!response.ok) {throw new Error('登录失败');}
         
         const token = data.token;
+        
+        // 存储token
+        localStorage.setItem('user_token', token);
+        userStore.setToken(token);
+
         alert(`登录成功！${token}`)
 
         }catch (error) {

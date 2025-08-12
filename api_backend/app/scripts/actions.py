@@ -1,35 +1,37 @@
 # -*- coding: utf-8 -*-
-from flask_socketio import emit
-from scripts.game_state import game_state
+# from flask_socketio import emit
+from scripts.game_state import set_game_state_in_redis, publish_state_update, publish_private_message
+
 
 """
 这个文件包含了所有的游戏行为逻辑函数。
 这些函数负责修改 game_state。
+新增使用redis 缓存
 """
 
 
 # --- 辅助函数 ---
 
-def add_log(message, relevant_users):
+def add_log(current_state,message, relevant_users):
     log_entry = {
         "message": message,
         "to": relevant_users,
-        "night": game_state['night_number'],
-        "phase": game_state['game_phase']
+        "night": current_state['night_number'],
+        "phase": current_state['game_phase']
     }
-    game_state['action_logs'].insert(0, log_entry)
-    game_state['action_logs'] = game_state['action_logs'][:100]
+    current_state['action_logs'].insert(0, log_entry)
+    current_state['action_logs'] = current_state['action_logs'][:100]
 
 
-def get_player_specific_state(username):
-    player_info = game_state['players'].get(username)
+def get_player_specific_state(current_state:dict, username):
+    player_info = current_state['players'].get(username)
     if not player_info: return {}
 
-    visible_logs = [log['message'] for log in game_state['action_logs'] if
+    visible_logs = [log['message'] for log in current_state['action_logs'] if
                     log['to'] == 'all' or (isinstance(log['to'], list) and username in log['to'])]
 
     simplified_players = []
-    for p_data in game_state['players'].values():
+    for p_data in current_state['players'].values():
         public_data = {"username": p_data['username'], "number": p_data['number'], "status": p_data['status']}
         status_map = {'alive': '存活', 'dead': '死亡', 'executed': '死亡', 'final_vote': '仅剩一票'}
         public_data['status_display'] = status_map.get(p_data['status'], '存活')
@@ -42,7 +44,7 @@ def get_player_specific_state(username):
     simplified_self_info['acting_role'] = '小恶魔' if simplified_self_info.get('is_imp') else simplified_self_info[
         'role']
 
-    full_player_state = game_state.copy()
+    full_player_state = current_state.copy()
     full_player_state['players'] = simplified_players
     full_player_state['self_info'] = simplified_self_info
     full_player_state['action_logs'] = visible_logs
@@ -50,83 +52,108 @@ def get_player_specific_state(username):
     return full_player_state
 
 
-def broadcast_all(socketio):
-    if game_state['storyteller_sid']:
-        socketio.emit('update_game_state', game_state, to=game_state['storyteller_sid'])
-    for username, player_data in game_state['players'].items():
-        if player_data.get('sid'):
-            player_state = get_player_specific_state(username)
-            socketio.emit('update_game_state', player_state, to=player_data['sid'])
+# def broadcast_all():
+#     if game_state['storyteller_sid']:
+#         # socketio.emit('update_game_state', game_state, to=game_state['storyteller_sid'])
+#         set_game_state_in_redis(game_state)
+#         publish_game_state(game_state)
+#     for username, player_data in game_state['players'].items():
+#         if player_data.get('sid'):
+#             player_state = get_player_specific_state(username)
+#             # socketio.emit('update_game_state', player_state, to=player_data['sid'])
+#             publish_game_state(player_state)
+
 
 
 # --- 说书人行为处理器 ---
 
 # 新增：开始游戏并发牌 (随机模式)
-def handle_start_game(data, socketio):
-    if game_state['game_mode'] != 'random' or not game_state['is_game_ready_to_start']:
+def handle_start_game(detail:dict, user_id:str, current_state: dict):
+
+    update_state = current_state.copy()
+    if update_state['game_mode'] != 'random' or not update_state['is_game_ready_to_start']:
         return
 
     # 分配角色
-    roles = game_state['roles_to_assign']
-    player_list = list(game_state['players'].keys())
+    roles = update_state['roles_to_assign']
+    player_list = list(update_state['players'].keys())
 
     for i, username in enumerate(player_list):
         role = roles[i]
-        game_state['players'][username]['role'] = role
-        game_state['players'][username]['is_evil'] = role in game_state['bad_roles']
-        game_state['players'][username]['is_imp'] = role == '小恶魔'
-        game_state['assigned_roles'][username] = role
+        update_state['players'][username]['role'] = role
+        update_state['players'][username]['is_evil'] = role in update_state['bad_roles']
+        update_state['players'][username]['is_imp'] = role == '小恶魔'
+        update_state['assigned_roles'][username] = role
 
         # 向每个玩家发送他们的角色信息
-        player_sid = game_state['players'][username].get('sid')
-        if player_sid:
-            socketio.emit('role_assigned', {
+        # player_sid = current_state['players'][username].get('sid')
+        # if player_sid:
+        #     socketio.emit('role_assigned', {
+        #         'role': role,
+        #         'description': game_state['role_descriptions'].get(role, '暂无描述。')
+        #     }, to=player_sid)
+                    # 2. 【关键】调用辅助函数，发布一条私信指令给这个玩家
+        publish_private_message(
+            target_user_id=username,
+            event_name='role_assigned', # 前端将监听这个事件
+            payload={
                 'role': role,
-                'description': game_state['role_descriptions'].get(role, '暂无描述。')
-            }, to=player_sid)
-
-    add_log("游戏开始！角色已分配。", "all")
+                'description': updated_state.get('role_descriptions', {}).get(role, '暂无描述。')
+            }
+        )
+    add_log(current_state,"游戏开始！角色已分配。", "all")
     # 游戏开始后，直接进入首夜
-    handle_change_phase({}, socketio)
+    handle_change_phase(current_state=update_state)
 
 
 
 # 更新轮次
-def handle_change_phase(data, socketio):
-    current_phase = game_state['game_phase']
+def handle_change_phase(detail:dict, user_id:str, current_state: dict):
+    current_phase = current_state.get['game_phase']
+
+    update_state = current_state.copy()
     if current_phase in ['not_started', 'day']:
-        game_state['game_phase'] = 'night'
-        game_state['night_actions_completed'] = []
-        game_state['current_vote'] = None
+        update_state['game_phase'] = 'night'
+        update_state['night_actions_completed'] = []
+        update_state['current_vote'] = None
         if current_phase == 'not_started':
-            game_state['night_number'] = 1
+            update_state['night_number'] = 1
         else:
-            game_state['night_number'] += 1
-        add_log(f"进入第 {game_state['night_number']} 晚。", "all")
+            update_state['night_number'] += 1
+        add_log(f"进入第 {update_state['night_number']} 晚。", "all", update_state)
     else:
-        game_state['game_phase'] = 'day'
+        update_state['game_phase'] = 'day'
         add_log("天亮了。", "all")
-    broadcast_all(socketio)
+    
+    return update_state
+    # broadcast_all(socketio)
 
 
 # 执行投票
-def handle_initiate_vote(data, socketio):
-    if game_state['game_phase'] != 'day' or game_state.get('current_vote'): return
-    target_username = data.get('target_username')
-    if not target_username or target_username not in game_state['players']: return
+def handle_initiate_vote(detail:dict, user_id:str, current_state: dict):
+    update_state = current_state.copy()
 
-    voters = [p for p_name, p in game_state['players'].items()
-              if p['status'] not in ['dead', 'executed'] and p_name != target_username]
+    if update_state['game_phase'] != 'day' or update_state.get('current_vote'): return
+    target_username = detail.get('target_username')
 
-    game_state['current_vote'] = {"target": target_username, "votes": {}, "voters": [p['username'] for p in voters]}
+    if not target_username or target_username not in update_state['players']: return
+
+    voters = [p for p_name, p in update_state['players'].items()
+                if p['status'] not in ['dead', 'executed'] and p_name != target_username]
+
+    update_state['current_vote'] = {"target": target_username, "votes": {}, "voters": [p['username'] for p in voters]}
     add_log(f"说书人对玩家 '{target_username}' 发起了处决投票。", "all")
 
     vote_data = {"target": target_username}
     for voter in voters:
-        if voter.get('sid'):
-            socketio.emit('initiate_vote', vote_data, to=voter['sid'])
+        # if voter.get('sid'):
+        #     socketio.emit('initiate_vote', vote_data, to=voter['sid'])
+        publish_private_message(
+            target_user_id=voter['username'],
+            event_name='initiate_vote',
+            payload=vote_data
+        )
 
-    broadcast_all(socketio)
 
 
 # 坏人阵营初始化
