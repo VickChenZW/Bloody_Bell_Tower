@@ -70,7 +70,8 @@ def get_initial_state() -> dict:
     这个函数是状态的“蓝图”或“模板”。
     """
     return {
-        "players": {},
+        "players": {}, # 玩家信息 {username: {sid, username:str, role:str,is_storyteller:bool, is_bad:boolean, is_evil:boolean, status:str}}
+
         "game_phase": "not_started",
         "night_number": 0,
         "action_logs": [],
