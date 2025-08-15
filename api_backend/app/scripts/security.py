@@ -4,6 +4,8 @@ from datetime import datetime, timedelta, timezone
 # 从 jose 库中导入 jwt
 from jose import jwt, JWTError
 from fastapi import HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+
 
 # 1. 配置
 # 这串密钥是你的最高机密，绝对不能泄露！
@@ -11,6 +13,8 @@ from fastapi import HTTPException, status
 SECRET_KEY = "a_super_secret_and_long_string_for_your_project_!@#$%^&*()"
 ALGORITHM = "HS256"  # 使用的签名算法
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # Token 有效期，这里设置为24小时
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
 
 def create_access_token(data: dict) -> str:
     """

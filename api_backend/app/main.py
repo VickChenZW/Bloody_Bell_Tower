@@ -1,15 +1,32 @@
 # -*- coding: utf-8 -*-
-from fastapi import FastAPI, Form, Depends, HTTPException, status
+from fastapi import FastAPI, Form, Depends, HTTPException, status, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Dict, List, Any
+
 
 import uvicorn
 
-from app.scripts import security
-from app.scripts import storyteller_action, player_action
-from app.scripts import game_state
+from scripts import security
+from scripts import storyteller_action, player_action
+from scripts import game_state
+
+
+class LoginPayload(BaseModel):
+    user: str
+    isStoryteller: bool
+    role: str | None = None
+    number: int | None = None
+    gameMode: str | None = None
+
+class SetupPayload(BaseModel):
+    detail: Dict[str, Any] = {}
 
 
 
+class GameActionPayload(BaseModel):
+    action: str
+    details: Dict[str, Any] = {}
 
 
 app = FastAPI(
@@ -31,26 +48,40 @@ async def get_current_user(token:str = Depends(security.oauth2_scheme)):
 
 
 @app.post("/api/login")
-async def login(payload: dict):
+async def login(payload: LoginPayload):
 
     if payload:
-        user = payload.get("user")
-        role = payload.get("role")
-        number = payload.get("number")
-        isStoryteller = payload.get("isStoryteller")
-        print(user, role, number, isStoryteller)
-        token = security.create_access_token(data={"sub": user, "role": role, "number": number, "isStoryteller": isStoryteller})
+        user = payload.user
+        role = payload.role
+        number = payload.number
+        isStoryteller = payload.isStoryteller
+        gameMode = ''
+        if isStoryteller:
+            gameMode = payload.gameMode
+        # print(user, role, number, isStoryteller)       
         
-        game_state.reset_game_state()
+        if isStoryteller:
+            game_state.reset_game_state()
+        game_state.player_join(user, role, number, isStoryteller,gameMode)
+        print(payload.gameMode)
+
         game_state.publish_state_update()
+        print("游戏状态已在 Redis 中发布更新。")        
+        token = security.create_access_token(data={"sub": user, "role": role, "number": number, "isStoryteller": isStoryteller})
         
         return {"token": token}
     else:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-@app.post("/api/setup")
+@app.post("/api/setup-game")
 def setup(payload: dict, current_user: dict = Depends(get_current_user)):
-    if payload.get("isStoryteller"):
+    if current_user.get("isStoryteller"):
+        selected_roles = payload.get("roles", [])
+        print(selected_roles)
+
+        game_state.game_setup(selected_roles)
+        game_state.publish_state_update()
+        print("说书人选择角色已在 Redis 中发布更新。")
         return {"message": "setup"}
     else:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -58,12 +89,13 @@ def setup(payload: dict, current_user: dict = Depends(get_current_user)):
 
 
 @app.post("/api/game-action")
-async def handle_game_action(payload: dict, current_user: dict = Depends(get_current_user)):
+async def handle_game_action(payload:GameActionPayload, current_user: dict = Depends(get_current_user)):
+
     """
     【关键路由】
     这是处理所有游戏内行为的统一入口点。
     """
-    user_id = current_user.get("username")
+    user_id = current_user.get("sub")
     is_storyteller = current_user.get("isStoryteller")
 
     
@@ -100,13 +132,13 @@ async def handle_game_action(payload: dict, current_user: dict = Depends(get_cur
     return {"status": "success", "action_processed": action_name}
 
 
-@app.post("api/authenticate")
-def authenticate(payload: dict, current_user: dict =Depends(get_current_user)):
-    """认证路由。"""
-    return {"message": "authenticate"}
-
-
-
+@app.get("/api/verify-token")
+async def verify_token(current_user: dict = Depends(get_current_user)):
+    """
+    一个简单的端点，仅用于验证Token并返回解码后的用户信息。
+    专门给 Node.js 服务器调用。
+    """
+    return current_user
 
 
 if __name__ == "__main__":

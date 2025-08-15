@@ -8,33 +8,36 @@ import json
 使用一个字典来作为单例，确保全局只有一个游戏状态实例。
 """
 # init redis client
-redis_client = redis.Redis(host='localhost', port=6379, db=0)
+redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+print("redis client connected")
+
 
 THE_GAME_KEY = "game_state"
 
-game_state = {
-    "players": {},
-    "game_phase": "not_started",
-    "night_number": 0,
-    "action_logs": [],
-    "storyteller_sid": None,
-    "storyteller_username": None,
-    "night_actions_completed": [],
-    "current_vote": None,
-    "first_night_order": FIRST_NIGHT_ORDER,
-    "other_nights_order": OTHER_NIGHTS_ORDER,
-    "roles": ROLES,
-    "good_roles": GOOD_ROLES,
-    "bad_roles": BAD_ROLES,
-    "role_descriptions": ROLE_DESCRIPTIONS,
+# region
+# game_state = {
+#     "players": {},
+#     "game_phase": "not_started",
+#     "night_number": 0,
+#     "action_logs": [],
+#     "storyteller_sid": None,
+#     "storyteller_username": None,
+#     "night_actions_completed": [],
+#     "current_vote": None,
+#     "first_night_order": FIRST_NIGHT_ORDER,
+#     "other_nights_order": OTHER_NIGHTS_ORDER,
+#     "roles": ROLES,
+#     "good_roles": GOOD_ROLES,
+#     "bad_roles": BAD_ROLES,
+#     "role_descriptions": ROLE_DESCRIPTIONS,
 
-    # 新增：用于随机分配模式的状态
-    "game_mode": "manual",  # 'manual' or 'random'
-    "total_player_count": 0,
-    "roles_to_assign": [],
-    "assigned_roles": {},  # {username: role}
-    "is_game_ready_to_start": False,
-}
+#     # 新增：用于随机分配模式的状态
+#     "game_mode": "manual",  # 'manual' or 'random'
+#     "total_player_count": 0,
+#     "roles_to_assign": [],
+#     "assigned_roles": {},  # {username: role}
+#     "is_game_ready_to_start": False,
+# }
 
 
 # def reset_game_state():
@@ -62,6 +65,8 @@ game_state = {
 # def publish_game_state():
 #     """发布游戏状态到Redis频道。"""
 #     redis_client.publish(THE_GAME_KEY, json.dumps(game_state))
+# endregion
+
 
 
 def get_initial_state() -> dict:
@@ -70,8 +75,7 @@ def get_initial_state() -> dict:
     这个函数是状态的“蓝图”或“模板”。
     """
     return {
-        "players": {}, # 玩家信息 {username: {sid, username:str, role:str,is_storyteller:bool, is_bad:boolean, is_evil:boolean, status:str}}
-
+        "players": {}, # 玩家信息 {username: {username:str, role:str,is_storyteller:bool, is_bad:boolean, is_evil:boolean, status:str}}
         "game_phase": "not_started",
         "night_number": 0,
         "action_logs": [],
@@ -143,3 +147,42 @@ def publish_private_message(target_user_id: str, event_name: str, payload: dict)
     }
     # 将指令序列化为JSON并发布
     redis_client.publish('private-message', json.dumps(command))
+
+def player_join(username: str, role:str, number:str, isStoryteller:bool,gameMode:str):
+
+    """
+    玩家加入游戏时调用。
+    会更新游戏状态中的玩家信息。
+    """
+    current_state = get_game_state_from_redis()
+    if not username in current_state["players"]:
+        if isStoryteller:
+            current_state["storyteller_username"] = username
+            current_state["game_mode"] = gameMode
+
+        else:
+            current_state["players"][username] = {
+                "username": username,
+                "role": role,
+                "number": number,
+                "isStoryteller": isStoryteller,
+                "status": "alive",
+            }
+    set_game_state_in_redis(current_state)
+
+    return current_state
+
+def game_setup(selected_roles:list):
+    """
+    游戏设置时调用。
+    会更新游戏状态中的玩家信息。
+    """
+    current_state = get_game_state_from_redis()
+    if current_state["game_mode"] == "random":
+        current_state["roles_to_assign"] = selected_roles
+        current_state["total_player_count"] = len(selected_roles)
+    print(current_state)
+    set_game_state_in_redis(current_state)
+
+    return current_state
+

@@ -16,8 +16,12 @@ const io = new Server(server, {
     }
 });
 
+// python backend api
+const backend_api = 'http://localhost:5000';
+
+
 // Redis 客户端配置 (使用Docker时, 'redis' 就是主机名)
-const redisUrl = 'redis://redis:6379';
+const redisUrl = 'redis://localhost:6379';
 const redisClient = createClient({ url: redisUrl });
 const redisSubscriber = redisClient.duplicate(); // 创建一个专门用于订阅的副本
 
@@ -40,7 +44,7 @@ io.on('connection', (socket) => {
 
         try {
             // 【关键】调用Python后端的API来验证Token的有效性
-            const response = await fetch('http://backend_api:8000/api/verify-token', {
+            const response = await fetch(`${backend_api}/api/verify-token`, {
                 method: 'GET',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -50,6 +54,7 @@ io.on('connection', (socket) => {
                 console.log(`[Auth] 成功: 用户 ${userInfo.sub} 已通过认证。`);
 
                 // 将用户信息和房间信息存到 socket 实例上，供后续使用
+                socket.data.token = token;
                 socket.data.userId = userInfo.sub;
 
                 // 登记在线用户
@@ -76,6 +81,40 @@ io.on('connection', (socket) => {
      * @description 通用游戏行为网关
      * 接收所有来自客户端的游戏操作，并原封不动地转发给Python后端
      */
+    socket.on('setup_game', async (payload) =>{
+        const userId = socket.data.userId;
+        const token = socket.data.token;
+
+        if (!userId) {
+            console.log(`收到来自未认证用户 (${socket.id}) 的 setup_game，已忽略。`);
+            return;
+        }
+        console.log(`[Setup] 收到来自 ${userId} 的设置: ${payload.setup}，转发给Python...`);
+        try {
+            // 将前端发来的原始 payload 和 userId 一起，直接转发给 Python API
+            await fetch(`${backend_api}/api/setup-game`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json' ,
+                    'Authorization': `Bearer ${token}`
+                },
+                // 注意：这里的 Authorization 头需要携带一个内部服务间通信的密钥，或者直接信任内部网络
+                // 为了简化，我们先假设内部网络是可信的，并直接构造请求体
+                body: JSON.stringify(payload)
+            });
+            // 成功时，Node.js 不需要做任何事，等待Python通过Redis发布状态更新即可
+        } catch (error) {
+            console.error("[Setup] 调用Python API失败:", error);
+            socket.emit('setup_failed', { message: '服务器内部通信错误' });
+        }
+
+
+    });
+    /**
+     * @description 游戏行为事件
+     * 接收所有来自客户端的游戏操作，并原封不动地转发给Python后端
+     */
+
     socket.on('game_action', async (payload) => {
         const userId = socket.data.userId;
         if (!userId) {
@@ -87,15 +126,15 @@ io.on('connection', (socket) => {
 
         try {
             // 将前端发来的原始 payload 和 userId 一起，直接转发给 Python API
-            await fetch('http://backend_api:8000/api/game-action', {
+            await fetch(`${backend_api}/api/game-action`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json' ,
+                    'Authorization': `Bearer ${token}`
+                },
                 // 注意：这里的 Authorization 头需要携带一个内部服务间通信的密钥，或者直接信任内部网络
                 // 为了简化，我们先假设内部网络是可信的，并直接构造请求体
-                body: JSON.stringify({
-                    userId: userId,
-                    payload: payload
-                })
+                body: JSON.stringify(payload)
             });
             // 成功时，Node.js 不需要做任何事，等待Python通过Redis发布状态更新即可
         } catch (error) {

@@ -18,7 +18,7 @@ def add_log(current_state: dict, message: str, relevant_users) -> dict:
     它接收当前的状态，在其中添加一条日志，然后返回更新后的状态。
     """
     # 使用深拷贝以确保我们不会意外修改原始字典的内部列表
-    updated_state = copy.deepcopy(current_state)
+    updated_state = current_state.copy()
     
     log_entry = {
         "message": message,
@@ -102,7 +102,12 @@ def handle_start_game(detail:dict, user_id:str, current_state: dict):
         )
     add_log(current_state,"游戏开始！角色已分配。", "all")
     # 游戏开始后，直接进入首夜
-    handle_change_phase(current_state=update_state)
+    # handle_change_phase(current_state=update_state)
+    update_state['game_phase'] = 'night'
+    update_state['night_number'] = 1
+    final_state = add_log(updated_state, "游戏开始！角色已分配。", "all")
+    final_state = add_log(final_state, "进入第 1 晚。", "all") # 链式调用
+    return final_state
 
 
 
@@ -110,7 +115,7 @@ def handle_start_game(detail:dict, user_id:str, current_state: dict):
 def handle_change_phase(detail:dict, user_id:str, current_state: dict):
     update_state = current_state.copy()
 
-    current_phase = update_state.get['game_phase']
+    current_phase = update_state.get('game_phase')
     if current_phase in ['not_started', 'day']:
         update_state['game_phase'] = 'night'
         update_state['night_actions_completed'] = []
@@ -119,10 +124,10 @@ def handle_change_phase(detail:dict, user_id:str, current_state: dict):
             update_state['night_number'] = 1
         else:
             update_state['night_number'] += 1
-        add_log(f"进入第 {update_state['night_number']} 晚。", "all", update_state)
+        add_log(update_state,f"进入第 {update_state['night_number']} 晚。", "all", update_state)
     else:
         update_state['game_phase'] = 'day'
-        add_log("天亮了。", "all")
+        add_log(update_state,"天亮了。", "all")
     
     return update_state
     # broadcast_all(socketio)
@@ -141,7 +146,7 @@ def handle_initiate_vote(detail:dict, user_id:str, current_state: dict):
                 if p['status'] not in ['dead', 'executed'] and p_name != target_username]
 
     update_state['current_vote'] = {"target": target_username, "votes": {}, "voters": [p['username'] for p in voters]}
-    add_log(f"说书人对玩家 '{target_username}' 发起了处决投票。", "all")
+    add_log(update_state, f"说书人对玩家 '{target_username}' 发起了处决投票。", "all")
 
     vote_data = {"target": target_username}
     for voter in voters:
@@ -175,7 +180,7 @@ def handle_evil_team_setup(detail:dict, user_id:str, current_state: dict):
     minion_info = ", ".join([f"{m['number']}号-{m['username']}({m['role']})" for m in minions]) if minions else "无"
     evil_message = f"你的爪牙队友是: {minion_info}。{bluff_info}"
     # socketio.emit('receive_system_message', {'message': imp_message, 'type': 'info'}, to=imp['sid'])
-    add_log(f"[系统信息] {evil_message}", [imp['username'], update_state['storyteller_username']])
+    add_log(update_state,f"[系统信息] {evil_message}", [imp['username'], update_state['storyteller_username']])
     publish_private_message(
         target_user_id=imp['username'],
         event_name='receive_system_message',
@@ -186,20 +191,19 @@ def handle_evil_team_setup(detail:dict, user_id:str, current_state: dict):
         )
     # send to minions
     for m in minions:
-        if m.get('sid'):
-            imp_info = f"{imp['number']}号-{imp['username']}" if imp else "未知"
-            minion_message = f"你的恶魔是 {imp_info}。你的邪恶队友有: {', '.join(p['username'] for p in evil_players.values())}。{bluff_info}"
-            # socketio.emit('receive_system_message', {'message': minion_message, 'type': 'info'}, to=m['sid'])
-            publish_private_message(
-                target_user_id=m['username'],
-                event_name='receive_system_message',
-                payload={
-                    'message': minion_message,
-                    'type': 'info'
-                }
-            )
+        imp_info = f"{imp['number']}号-{imp['username']}" if imp else "未知"
+        minion_message = f"你的恶魔是 {imp_info}。你的邪恶队友有: {', '.join(p['username'] for p in evil_players.values())}。{bluff_info}"
+        # socketio.emit('receive_system_message', {'message': minion_message, 'type': 'info'}, to=m['sid'])
+        publish_private_message(
+            target_user_id=m['username'],
+            event_name='receive_system_message',
+            payload={
+                'message': minion_message,
+                'type': 'info'
+            }
+        )
 
-            add_log(f"[系统信息] {minion_message}", [m['username'], game_state['storyteller_username']])
+        add_log(update_state,f"[系统信息] {minion_message}", [m['username'], game_state['storyteller_username']])
 
     if "恶魔爪牙信息" not in update_state['night_actions_completed']:
         update_state['night_actions_completed'].append("恶魔爪牙信息")
@@ -214,8 +218,8 @@ def handle_wake_player(detail:dict, user_id:str, current_state: dict):
     target_username = detail.get('target_username')
     role_action = detail.get('role_action')
     player = update_state['players'].get(target_username)
-    if player and player.get('sid'):
-        add_log(f"说书人正在唤醒 {target_username} ({role_action})。",
+    if player:
+        add_log(update_state,f"说书人正在唤醒 {target_username} ({role_action})。",
                 [target_username, update_state['storyteller_username']])
         # socketio.emit('wake_up', {'role': role_action}, to=player['sid'])
         publish_private_message(
@@ -239,7 +243,7 @@ def handle_info_to_player(detail:dict, user_id:str, current_state: dict):
     message = detail.get('message')
     role_action = detail.get('role_action')
     player = update_state['players'].get(target_username)
-    if player and player.get('sid') and message and role_action:
+    if player and message and role_action:
         # socketio.emit('receive_system_message', {'message': message, 'type': 'info'}, to=player['sid'])
         publish_private_message(
             target_user_id=target_username,
@@ -250,7 +254,7 @@ def handle_info_to_player(detail:dict, user_id:str, current_state: dict):
             }
         )
 
-        add_log(f"说书人向 {target_username} 发送信息: {message}",
+        add_log(update_state, f"说书人向 {target_username} 发送信息: {message}",
                 [target_username, update_state['storyteller_username']])
         if role_action not in update_state['night_actions_completed']:
             update_state['night_actions_completed'].append(role_action)
@@ -266,7 +270,7 @@ def handle_fortune_teller_result(detail:dict, user_id:str, current_state: dict):
     target_username = detail.get('target_username')
     result = detail.get('result')
     player = update_state['players'].get(target_username)
-    if player and player.get('sid') and result:
+    if player and result:
         message = f"关于你选择的目标，说书人的答复是: 【{result}】"
         publish_private_message(
             target_user_id=target_username,
@@ -278,7 +282,7 @@ def handle_fortune_teller_result(detail:dict, user_id:str, current_state: dict):
         )
 
         # socketio.emit('receive_system_message', {'message': message, 'type': 'info'}, to=player['sid'])
-        add_log(f"说书人向 {target_username} 回复: {result}", [target_username, update_state['storyteller_username']])
+        add_log(update_state,f"说书人向 {target_username} 回复: {result}", [target_username, update_state['storyteller_username']])
         if "占卜师" not in update_state['night_actions_completed']:
             update_state['night_actions_completed'].append("占卜师")
     # broadcast_all(socketio)
@@ -293,7 +297,7 @@ def handle_update_player_status(detail:dict, user_id:str, current_state: dict):
     status = detail.get('status')
     if target_username in update_state['players']:
         update_state['players'][target_username]['status'] = status
-        add_log(f"说书人将 '{target_username}' 的状态更新为: {status}。", [update_state['storyteller_username']])
+        add_log(update_state, f"说书人将 '{target_username}' 的状态更新为: {status}。", [update_state['storyteller_username']])
     # broadcast_all(socketio)
     return update_state
 
@@ -308,22 +312,23 @@ def handle_toggle_player_effect(detail:dict, user_id:str, current_state: dict):
         player_effects = update_state['players'][target_username].setdefault('effects', [])
         if effect in player_effects:
             player_effects.remove(effect)
-            add_log(f"说书人移除了 '{target_username}' 的 {effect} 效果。", [update_state['storyteller_username']])
+            add_log(update_state, "说书人移除了 '{target_username}' 的 {effect} 效果。", [update_state['storyteller_username']])
         else:
             player_effects.append(effect)
-            add_log(f"说书人对 '{target_username}' 添加了 {effect} 效果。", [update_state['storyteller_username']])
+            add_log(update_state,f"说书人对 '{target_username}' 添加了 {effect} 效果。", [update_state['storyteller_username']])
     # broadcast_all(socketio)
     return update_state
 
 
-
-# 处理跳过行动
+#region 处理跳过行动
 # def handle_skip_action(data, socketio):
 #     role_action = data.get('role_action')
 #     if role_action and role_action not in game_state['night_actions_completed']:
 #         game_state['night_actions_completed'].append(role_action)
 #         add_log(f"说书人跳过了 {role_action} 的行动。", [game_state['storyteller_username']])
 #     broadcast_all(socketio)
+#endregion 处理跳过行动
+
 
 
 #
@@ -334,7 +339,7 @@ def handle_set_imp(detail:dict, user_id:str, current_state: dict):
     if target_username in update_state['players']:
         for p in update_state['players'].values(): p['is_imp'] = False
         update_state['players'][target_username]['is_imp'] = True
-        add_log(f"说书人将 '{target_username}' 设为当前的小恶魔。", [update_state['storyteller_username']])
+        add_log(update_state, f"说书人将 '{target_username}' 设为当前的小恶魔。", [update_state['storyteller_username']])
     # broadcast_all(socketio)
     return update_state
 
@@ -344,7 +349,7 @@ def handle_send_log_to_spy(detail:dict, user_id:str, current_state: dict):
     
     target_username = detail.get('target_username')
     spy = update_state['players'].get(target_username)
-    if not spy or not spy.get('sid'): return
+    if not spy: return
 
     current_night = update_state['night_number']
 
@@ -366,13 +371,14 @@ def handle_send_log_to_spy(detail:dict, user_id:str, current_state: dict):
         }
     )
 
-    add_log(f"向间谍({spy['username']})发送了当夜日志。", [update_state['storyteller_username']])
+    add_log(update_state, f"向间谍({spy['username']})发送了当夜日志。", [update_state['storyteller_username']])
     if "间谍" not in update_state['night_actions_completed']:
         update_state['night_actions_completed'].append("间谍")
 
     # emit('update_game_state', game_state, to=game_state['storyteller_sid'])
 
 
+# region
 # 处理说书人清除投票显示
 # def handle_clear_vote_display(detail:dict, user_id:str, current_state: dict):
 #     handle_update_player_status(detail, user_id, current_state)
@@ -390,5 +396,6 @@ def handle_send_log_to_spy(detail:dict, user_id:str, current_state: dict):
 #     broadcast_all(socketio)
 
 # --- 玩家行为处理器 ---
+#endregion
 
 

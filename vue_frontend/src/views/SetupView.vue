@@ -53,7 +53,7 @@
                         </div>
                         </div>
                     </div>
-                    <button id="submit-btn" type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition disabled:bg-gray-600 disabled:cursor-not-allowed" 
+                    <button id="submit-btn" type="button" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition disabled:bg-gray-600 disabled:cursor-not-allowed" 
                     :disabled="selectedRoles.size !== playerCount"
                     @click="submitConfig()">
                         {{!playerCount
@@ -74,7 +74,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { socketService } from '@/services/socketService';
+import { socketService } from '@/socket';
 import * as config from '@/config/gameConfig'// 从配置文件导入
 
 const role = ref('');
@@ -128,10 +128,10 @@ function submitConfig() {
     };
 
     // 通过 socket 发送配置
-    socketService.emit('game_setup', config);
+    socketService.emit('setup_game', config);
 
     // 跳转到游戏面板
-    router.push('/game-board');
+    // router.push('/game-board');
     console.log('ok!!');
 }
 </script>
